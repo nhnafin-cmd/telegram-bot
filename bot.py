@@ -32,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         await update.message.reply_text(
-            "স্বাগতম আমাদের Official Instagram Sell BD Bot এ", 
+            "🌷স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗", 
             reply_markup=reply_markup
         )
     else:
