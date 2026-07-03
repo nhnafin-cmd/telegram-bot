@@ -2,7 +2,7 @@ import os
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN = os.getenv("8812541901:AAF12HU1Gp2A9arTLaS_manzrS1euql2q4c")
+TOKEN = os.getenv(8812541901:AAF12HU1Gp2A9arTLaS_manzrS1euql2q4c)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
