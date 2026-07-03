@@ -32,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         await update.message.reply_text(
-            "🤖 WELCOME OUR OFFICIAL INSTAGRAM BOT BD", 
+            "স্বাগতম আমাদের Official Instagram Sell BD Bot এ", 
             reply_markup=reply_markup
         )
     else:
@@ -100,7 +100,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("যেকোনো সমস্যায় আমাদের এডমিনের সাথে যোগাযোগ করুন।✅ @nafin_4x_team")
 
     elif text == '🙋‍♂️ আমি নতুন':
-        await update.message.reply_text("বটে কীভাবে কাজ করবেন তা জানতে আমাদের গাইডলাইনটি পড়ুন।")
+        await update.message.reply_text("বটে কীভাবে কাজ করবেন তা জানতে আমাদের চেনেল এ join হন✅ https://t.me/OfficialInstagramSellBD")
 
 def main():
     app = Application.builder().token(TOKEN).build()
