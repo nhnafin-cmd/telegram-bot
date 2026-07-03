@@ -49,7 +49,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔗 আপনার রেফারেল লিংক: (এখানে লিংক জেনারেট হবে)")
 
     elif text == '🎧 সাপোর্ট':
-        await update.message.reply_text("যেকোনো সমস্যায় আমাদের এডমিনের সাথে যোগাযোগ করুন।")
+        await update.message.reply_text("যেকোনো সমস্যায় আমাদের এডমিনের সাথে যোগাযোগ করুন।
+        ✅ @nafin_4x_team
+        mean canal 
+                                        ✅ https://t.me/OfficialInstagramSellBD")
 
     elif text == '🙋‍♂️ আমি নতুন':
         await update.message.reply_text("বটে কীভাবে কাজ করবেন তা জানতে আমাদের গাইডলাইনটি পড়ুন।")
