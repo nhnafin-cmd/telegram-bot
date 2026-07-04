@@ -192,11 +192,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "তারপর নিচে **2FA Set** বাটনে ক্লিক করুন। 🤪"
         )
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔐 2FA Set", callback_data="set_2fa")]])
-        await query.message.reply_text(text_msg, parse_mode="Markdown", reply_markup=keyboard)
+        await query.message.reply_text(text_msg, parse_mode="Markdown", keyboard=keyboard)
         
     elif query.data == "set_2fa":
-        USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
-        await query.message.reply_text("🔑 **2FA Key টি দিন:** ⤵️")
+        # সরাসরি কি না চেয়ে প্রথমে নতুন খোলা অ্যাকাউন্টের ইউজারনেম চাওয়া হচ্ছে
+        USER_STATES[user_id] = 'WAITING_FOR_USERNAME'
+        await query.message.reply_text("👇 আপনি যে ইউজারনেম দিয়ে অ্যাকাউন্ট খুলেছেন সেটি দিন:")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -261,21 +262,51 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await add_balance(update, context)
         return
 
-    # ইউজার যখন 2FA Key টেক্সট হিসেবে পাঠাবে
-    if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
+    # 👤 ১. ইউজার যখন তার খোলা অ্যাকাউন্টের ইউজারনেম ইনপুট দেবে
+    if USER_STATES.get(user_id) == 'WAITING_FOR_USERNAME':
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
             await start(update, context)
             return
             
+        if user_id not in USER_DATA: USER_DATA[user_id] = {}
+        USER_DATA[user_id]['submitted_username'] = text.strip() # ইউজারনেম সাময়িকভাবে সেভ রাখা হলো
+        
+        USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
+        await update.message.reply_text("🔑 **2FA Key টি দিন:** ⤵️")
+        return
+
+    # 🔑 ২. ইউজার যখন ইউজারনেম দেওয়ার পর 2FA Key ইনপুট দেবে
+    if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
+        if '⬅️ ফিরে যান' in text:
+            USER_STATES[user_id] = None
+            if user_id in USER_DATA: del USER_DATA[user_id]
+            await start(update, context)
+            return
+            
+        submitted_user = USER_DATA.get(user_id, {}).get('submitted_username', 'N/A')
+        submitted_key = text.strip()
+        
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        BOT_DATA["pending_links"][str_user_id].append(f"2FA Key: {text}")
+        # এখানে Username এবং 2FA Key একসাথে ডাটাবেজে ফরম্যাট করে সেভ করা হচ্ছে
+        saved_task_format = f"👤 Username: {submitted_user} | 🔑 2FA Key: {submitted_key}"
+        BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {first_name}\n🆔 আইডি: `{user_id}`\n🔗 @{username}\n\n📝 **2FA Key:**\n`{text}`\n\n📊 এই ইউজারের মোট পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_user_id]}টি"
+        # এডমিন মেসেজে ইউজারনেম এবং কি আলাদাভাবে সুন্দর করে দেখাবে
+        msg = (
+            f"📥 **নতুন কাজ জমা পড়েছে!**\n\n"
+            f"👤 নাম: {first_name}\n"
+            f"🆔 আইডি: `{user_id}`\n"
+            f"🔗 @{username}\n\n"
+            f"📝 **কাজের বিবরণ:**\n"
+            f"👤 Username: `{submitted_user}`\n"
+            f"🔑 2FA Key: `{submitted_key}`\n\n"
+            f"📊 এই ইউজারের মোট পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_user_id]}টি"
+        )
         await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode="Markdown")
         
         dummy_otp = str(random.randint(100000, 999999))
@@ -291,6 +322,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("প্রক্রিয়াটি সম্পন্ন করুন:", reply_markup=bottom_keyboard)
         
         USER_STATES[user_id] = None
+        if user_id in USER_DATA: del USER_DATA[user_id]
         return
 
     # টাকা উত্তোলন - নাম্বার ইনপুট
@@ -353,6 +385,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == 'ইন্সটাগ্রাম কাজ >':
         inline_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("ইন্সটাগ্রাম 2fa (৳3.00)", callback_data="start_insta_task")]])
         await update.message.reply_text("• সিলেক্ট করুন:", reply_markup=inline_keyboard)
+    elif text == '✅ অ্যাকাউন্ট খোলা শেষ':
+        await update.message.reply_text("✅ আপনার সাবমিশন সফল হয়েছে! এডমিন চেক করার পর ব্যালেন্স যোগ হবে।", reply_markup=current_keyboard)
+    elif '💰 টাকা উত্তোলন' in text:
+        await update.message.reply_text("📩 মাধ্যম সিলেক্ট করুন:", reply_markup=ReplyKeyboardMarkup([['bKash', 'Nagad'], ['⬅️ ফিরে যান']], resize_keyboard=True))
     elif text == '✅ অ্যাকাউন্ট খোলা শেষ':
         await update.message.reply_text("✅ আপনার সাবমিশন সফল হয়েছে! এডমিন চেক করার পর ব্যালেন্স যোগ হবে।", reply_markup=current_keyboard)
     elif '💰 টাকা উত্তোলন' in text:
