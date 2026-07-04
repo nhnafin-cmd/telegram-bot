@@ -185,15 +185,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     
     if query.data == "start_insta_task":
-        text_msg = (
-            "👤 **Username:** `rohyfv770`\n"
-            "🔐 **Password:** `kamrol@04`\n\n"
-            "📸 উপরের ইউজারনেম এবং পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন। "
-            "তারপর নিচে **2FA Set** বাটনে ক্লিক করুন। 🤪"
-        )
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔐 2FA Set", callback_data="set_2fa")]])
-        # এখানে keyboard=keyboard এর জায়গায় reply_markup=keyboard করে দেওয়া হয়েছে
-        await query.message.reply_text(text_msg, parse_mode="Markdown", reply_markup=keyboard)
+        # এখানে কোনো বাটন বা আগের মেসেজ থাকবে না, সরাসরি ইউজারনেম চাইবে
+        USER_STATES[user_id] = 'WAITING_FOR_USERNAME'
+        await query.message.reply_text("username din")
+            # 👤 ১. ইউজার যখন তার খোলা অ্যাকাউন্টের ইউজারনেম ইনপুট দেবে
+    if USER_STATES.get(user_id) == 'WAITING_FOR_USERNAME':
+        if '⬅️ ফিরে যান' in text:
+            USER_STATES[user_id] = None
+            await start(update, context)
+            return
+            
+        if user_id not in USER_DATA: USER_DATA[user_id] = {}
+        USER_DATA[user_id]['submitted_username'] = text.strip()
+        
+        # ইউজারনেম পাওয়ার পর এখন শুধু "2fa din" চাবে
+        USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
+        await update.message.reply_text("2fa din")
+        return
+      
         
     elif query.data == "set_2fa":
         # সরাসরি কি না চেয়ে প্রথমে নতুন খোলা অ্যাকাউন্টের ইউজারনেম চাওয়া হচ্ছে
