@@ -362,3 +362,4 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif '⬅️ ফিরে যান' in text: 
         await start(update, context)
     else: 
+                         
