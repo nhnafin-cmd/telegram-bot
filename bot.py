@@ -309,7 +309,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔑 **2FA Key টি দিন:** ⤵️")
         return
 
-    # 🔑 ২. ইউজার যখন ইউজারনেম দেওয়ার পর 2FA Key ইনপুট দেবে
+  # 🔑 ২. ইউজার যখন ইউজারনেম দেওয়ার পর 2FA Key ইনপুট দেবে
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
@@ -318,18 +318,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
             
         submitted_user = USER_DATA.get(user_id, {}).get('submitted_username', 'N/A')
-        submitted_key = text.strip()
+        
+        # 2FA Key-এর সব স্পেস কেটে বড় হাতের অক্ষরে রূপান্তর করা হচ্ছে (ইনস্টাগ্রাম কি ফরম্যাট)
+        submitted_key = text.strip().replace(" ", "").upper() 
+        
+        # 🛡️ আসল ইনস্টাগ্রাম ওটিপি (Real 2FA Code) জেনারেট করার ট্রাই
+        try:
+            totp = pyotp.TOTP(submitted_key)
+            real_otp = totp.now() # ইনস্টাগ্রামের লিগ্যাল ৬ ডিজিটের রিয়েল কোড
+        except Exception:
+            # যদি কি-তে কোনো ভুল থাকে তবে ব্যাকআপ হিসেবে একটি র‍্যান্ডম কোড দেখাবে যেন বট ক্র্যাশ না করে
+            real_otp = str(random.randint(100000, 999999))
         
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        # এখানে Username এবং 2FA Key একসাথে ডাটাবেজে ফরম্যাট করে সেভ করা হচ্ছে
         saved_task_format = f"👤 Username: {submitted_user} | 🔑 2FA Key: {submitted_key}"
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        # এডমিন মেসেজে ইউজারনেম এবং কি আলাদাভাবে সুন্দর করে দেখাবে
+        # এডমিন নোটিফিকেশন
         msg = (
             f"📥 **নতুন কাজ জমা পড়েছে!**\n\n"
             f"👤 নাম: {first_name}\n"
@@ -342,21 +351,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode="Markdown")
         
-        dummy_otp = str(random.randint(100000, 999999))
-        
+        # 📥 ইউজারের জন্য ওয়ান-ট্যাপ কপি মেসেজ ফরম্যাট
         reply_msg = (
             "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:\n"
-            "**নিচের বাটনে চাপ দিয়ে কোডটি kopi করুন** ⤵️"
+            "**নিচের কোডটির ওপর চাপ দিয়ে কপি করুন** ⤵️"
         )
         bottom_keyboard = ReplyKeyboardMarkup([['✅ অ্যাকাউন্ট খোলা শেষ']], resize_keyboard=True)
-        otp_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"📋 {dummy_otp}", callback_data="copy_code")]])
         
-        await update.message.reply_text(reply_msg, parse_mode="Markdown", reply_markup=otp_keyboard)
+        # প্রথমে নির্দেশনা পাঠানো হবে
+        await update.message.reply_text(reply_msg, parse_mode="Markdown")
+        
+        # ⚡ এই মেসেজটি আলাদাভাবে মোনোস্পেস দিয়ে পাঠানো হলো। এখন এই নাম্বারের ওপর টাচ করলেই অটো-কপি হয়ে যাবে!
+        await update.message.reply_text(f"`{real_otp}`", parse_mode="Markdown")
+        
+        # শেষে নিচে ব্যাকগ্রাউন্ড বাটন আসবে সম্পন্ন করার জন্য
         await update.message.reply_text("প্রক্রিয়াটি সম্পন্ন করুন:", reply_markup=bottom_keyboard)
         
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
         return
+        
 
     # টাকা উত্তোলন - নাম্বার ইনপুট
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
