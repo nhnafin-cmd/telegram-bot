@@ -88,7 +88,7 @@ async def view_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"👤 আইডি: `{uid}` ➡️ পেন্ডিং কাজ: **{count}টি**\n"
             has_pending = True
     if not has_pending: msg += "ভল্ট খালি! কোনো পেন্ডিং কাজ নেই।"
-    msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা] [কয়টি]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কয়টি] [কারণ]`"
+    msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কারণ]`"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 # 🔎 এডমিন কমান্ড ৪: লিংক চেক (/check)
@@ -112,66 +112,54 @@ async def check_user_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/check ইউজার_আইডি`")
 
-# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা (/approve) - কাস্টম সংখ্যাসহ
+# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা (/approve)
 async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
         target_id = context.args[0]
         amount = float(context.args[1])
-        count_to_approve = int(context.args[2]) if len(context.args) > 2 else None
         
         if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
-            total_pending = BOT_DATA["pending_counts"][target_id]
+            old_pending = BOT_DATA["pending_counts"][target_id]
             
-            if count_to_approve is None or count_to_approve >= total_pending:
-                count_to_approve = total_pending
-            
-            if str(target_id) in BOT_DATA["pending_links"]:
-                BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_approve:]
-            
-            BOT_DATA["pending_counts"][target_id] -= count_to_approve
+            BOT_DATA["pending_counts"][target_id] = 0
+            BOT_DATA["pending_links"][target_id] = []
             BOT_DATA["balances"][target_id] = BOT_DATA["balances"].get(target_id, 0.0) + amount
-            BOT_DATA["approved_counts"][target_id] = BOT_DATA["approved_counts"].get(target_id, 0) + count_to_approve
+            BOT_DATA["approved_counts"][target_id] = BOT_DATA["approved_counts"].get(target_id, 0) + old_pending
             save_data(BOT_DATA)
             
-            await update.message.reply_text(f"✅ ইউজার `{target_id}` এর {count_to_approve}টি কাজ এপ্রুভ করা হয়েছে এবং {amount}৳ মূল ব্যালেন্সে যোগ হয়েছে।\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি", parse_mode="Markdown")
+            await update.message.reply_text(f"✅ ইউজার `{target_id}` এর {old_pending}টি কাজ এপ্রুভ করা হয়েছে এবং {amount}৳ মূল ব্যালেন্সে যোগ হয়েছে।", parse_mode="Markdown")
             try:
-                await context.bot.send_message(chat_id=int(target_id), text=f"🎉 আপনার জমা দেওয়া {count_to_approve}টি কাজ এডমিন চেক করে এপ্রুভ করেছেন!\n📥 মেইন ব্যালেন্সে {amount} BDT যোগ করা হয়েছে।\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি")
+                await context.bot.send_message(chat_id=int(target_id), text=f"🎉 আপনার জমা দেওয়া {old_pending}টি কাজ এডমিন চেক করে এপ্রুভ করেছেন!\n📥 মেইন ব্যালেন্সে {amount} BDT যোগ করা হয়েছে।\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
             except: pass
         else:
             await update.message.reply_text("❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
     except:
-        await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/approve ইউজার_আইডি টাকার_পরিমাণ কয়টি_কাজ` (যেমন: `/approve 12345678 20 1`)")
+        await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/approve ইউজার_আইডি টাকার_পরিমাণ`")
 
-# ❌ এডমিন কমান্ড ৫: কাজ রিজেক্ট করা (/reject) - কাস্টম সংখ্যাসহ
+# ❌ এডমিন কমান্ড ৫: কাজ রিজেক্ট করা (/reject)
 async def reject_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
         target_id = context.args[0]
-        count_to_reject = int(context.args[1])
-        reason = " ".join(context.args[2:]) if len(context.args) > 2 else "নিয়ম মানা হয়নি"
+        reason = " ".join(context.args[1:]) if len(context.args) > 1 else "নিয়ম মানা হয়নি"
         
         if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
-            total_pending = BOT_DATA["pending_counts"][target_id]
+            old_pending = BOT_DATA["pending_counts"][target_id]
             
-            if count_to_reject >= total_pending:
-                count_to_reject = total_pending
-            
-            if str(target_id) in BOT_DATA["pending_links"]:
-                BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_reject:]
-            
-            BOT_DATA["pending_counts"][target_id] -= count_to_reject
-            BOT_DATA["rejected_counts"][target_id] = BOT_DATA["rejected_counts"].get(target_id, 0) + count_to_reject
+            BOT_DATA["pending_counts"][target_id] = 0
+            BOT_DATA["pending_links"][target_id] = []
+            BOT_DATA["rejected_counts"][target_id] = BOT_DATA["rejected_counts"].get(target_id, 0) + old_pending
             save_data(BOT_DATA)
             
-            await update.message.reply_text(f"❌ ইউজার `{target_id}` এর {count_to_reject}টি কাজ রিজেক্ট করা হয়েছে।\n💬 কারণ: {reason}\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি", parse_mode="Markdown")
+            await update.message.reply_text(f"❌ ইউজার `{target_id}` এর {old_pending}টি কাজ রিজেক্ট করা হয়েছে।\n💬 কারণ: {reason}", parse_mode="Markdown")
             try:
-                await context.bot.send_message(chat_id=int(target_id), text=f"⚠️ আপনার জমা দেওয়া {count_to_reject}টি কাজ এডমিন রিজেক্ট করেছেন!\n💬 কারণ: {reason}\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি")
+                await context.bot.send_message(chat_id=int(target_id), text=f"⚠️ আপনার জমা দেওয়া {old_pending}টি কাজ এডমিন রিজেক্ট করেছেন!\n💬 কারণ: {reason}\n❌ এই কাজের জন্য কোনো ব্যালেন্স যোগ হয়নি।")
             except: pass
         else:
             await update.message.reply_text("❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
     except:
-        await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/reject ইউজার_আইডি কয়টি_কাজ রিজেক্টের_কারণ` (যেমন: `/reject 12345678 1 pass_vul`)")
+        await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/reject ইউজার_আইডি রিজেক্টের_কারণ`")
 
 # ➕ এডমিন কমান্ড ৩: সরাসরি ব্যালেন্স যোগ করা (/add)
 async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -215,11 +203,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         elif text == '✅ এপ্রুভ কাজ':
             USER_STATES[user_id] = 'WAITING_FOR_APPROVE_DATA'
-            await update.message.reply_text("👇 ইউজার আইডি, টাকার পরিমাণ এবং কয়টি কাজ স্পেস দিয়ে লিখুন\n(যেমন: `7831606559 20 1`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
+            await update.message.reply_text("👇 ইউজার আইডি এবং টাকার পরিমাণ স্পেস দিয়ে লিখুন\n(যেমন: `12345678 20`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
             return
         elif text == '❌ রিজেক্ট কাজ':
             USER_STATES[user_id] = 'WAITING_FOR_REJECT_DATA'
-            await update.message.reply_text("👇 ইউজার আইডি, কয়টি কাজ এবং রিজেক্ট করার কারণ স্পেস দিয়ে লিখুন\n(যেমন: `7831606559 1 pass_vul`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
+            await update.message.reply_text("👇 ইউজার আইডি এবং রিজেক্ট করার কারণ স্পেস দিয়ে লিখুন\n(যেমন: `12345678 পাসওয়ার্ড_ভুল`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
             return
         elif text == '➕ ব্যালেন্স যোগ':
             USER_STATES[user_id] = 'WAITING_FOR_ADD_DATA'
@@ -237,7 +225,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         USER_STATES[user_id] = None
         
         if current_state == 'WAITING_FOR_CHECK_ID':
-            context.args = text.strip().split()
+            context.args = [text.strip()]
             await check_user_links(update, context)
         elif current_state == 'WAITING_FOR_APPROVE_DATA':
             context.args = text.strip().split()
@@ -362,4 +350,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif '⬅️ ফিরে যান' in text: 
         await start(update, context)
     else: 
-                         
+        await update.message.reply_text("আমি বুঝতে পারিনি। অনুগ্রহ করে নিচের বাটনগুলো ব্যবহার করুন।", reply_markup=current_keyboard)
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("pending", view_pending))
+    app.add_handler(CommandHandler("check", check_user_links))
+    app.add_handler(CommandHandler("approve", approve_work))
+    app.add_handler(CommandHandler("reject", reject_work))
+    app.add_handler(CommandHandler("add", add_balance))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling()
+
+if __name__ == '__main__': main()
