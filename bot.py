@@ -16,13 +16,14 @@ def load_data():
         with open(BALANCE_FILE, "r") as f:
             try:
                 data = json.load(f)
-                # পুরাতন ফাইল থাকলে নতুন স্ট্রাকচারে কনভার্ট করা
-                if "balances" not in data or "pending_counts" not in data:
-                    return {"balances": {}, "pending_counts": {}}
+                # ডাটাবেজে প্রয়োজনীয় কী (keys) না থাকলে তৈরি করা
+                if "balances" not in data: data["balances"] = {}
+                if "pending_counts" not in data: data["pending_counts"] = {}
+                if "pending_links" not in data: data["pending_links"] = {}
                 return data
             except:
-                return {"balances": {}, "pending_counts": {}}
-    return {"balances": {}, "pending_counts": {}}
+                return {"balances": {}, "pending_counts": {}, "pending_links": {}}
+    return {"balances": {}, "pending_counts": {}, "pending_links": {}}
 
 def save_data(data):
     with open(BALANCE_FILE, "w") as f:
@@ -48,6 +49,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["balances"][str_user_id] = 0.0
     if str_user_id not in BOT_DATA["pending_counts"]:
         BOT_DATA["pending_counts"][str_user_id] = 0
+    if str_user_id not in BOT_DATA["pending_links"]:
+        BOT_DATA["pending_links"][str_user_id] = []
     save_data(BOT_DATA)
     
     if await is_user_joined(context, user_id):
@@ -73,8 +76,27 @@ async def view_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     if not has_pending:
         msg += "ভল্ট খালি! কোনো পেন্ডিং কাজ নেই।"
-    msg += "\n\n💡 *কাজ এপ্রুভ করতে লিখুন:* `/approve [আইডি] [টাকা]`"
+    msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *কাজ এপ্রুভ করতে লিখুন:* `/approve [আইডি] [টাকা]`"
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+# 🔎 এডমিন কমান্ড ৪: কোন কোন লিংক পেন্ডিং আছে তা দেখা (/check ইউজার_আইডি)
+async def check_user_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        target_id = context.args[0]
+        links = BOT_DATA.get("pending_links", {}).get(target_id, [])
+        
+        if not links:
+            await update.message.reply_text(f"❌ ইউজার `{target_id}` এর কোনো পেন্ডিং কাজের লিংক পাওয়া যায়নি।", parse_mode="Markdown")
+            return
+            
+        msg = f"🔎 **ইউজার `{target_id}` এর জমা দেওয়া কাজসমূহ:**\n━━━━━━━━━━━━━━━\n"
+        for i, link in enumerate(links, start=1):
+            msg += f"{i}. {link}\n"
+            
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    except:
+        await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/check ইউজার_আইডি`")
 
 # ✅ এডমিন কমান্ড ২: কাজ রিমুভ ও ব্যালেন্স দেওয়া (/approve ইউজার_আইডি টাকা)
 async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -86,8 +108,11 @@ async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
             old_pending = BOT_DATA["pending_counts"][target_id]
             
-            # পেন্ডিং কাজ ০ (রিমুভ) করা এবং মেইন ব্যালেন্স যোগ করা
+            # পেন্ডিং কাজ এবং সেভ করা লিংকগুলো ডাটাবেজ থেকে ক্লিয়ার (রিমুভ) করা
             BOT_DATA["pending_counts"][target_id] = 0
+            BOT_DATA["pending_links"][target_id] = []
+            
+            # মেইন ব্যালেন্সে টাকা যোগ করা
             BOT_DATA["balances"][target_id] = BOT_DATA["balances"].get(target_id, 0.0) + amount
             save_data(BOT_DATA)
             
@@ -138,7 +163,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await start(update, context)
             return
             
-        # ডাটাবেজে পেন্ডিং কাউন্ট ১ বাড়িয়ে দেওয়া
+        # ডাটাবেজে লিংক লিস্ট এবং কাউন্ট আপডেট করা
+        if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
+        if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
+        
+        BOT_DATA["pending_links"][str_user_id].append(text)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
@@ -235,10 +264,10 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("pending", view_pending))
+    app.add_handler(CommandHandler("check", check_user_links))
     app.add_handler(CommandHandler("approve", approve_work))
     app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling()
 
 if __name__ == '__main__': main()
-        
