@@ -1,8 +1,9 @@
 import os
 import json
-from telegram import Update, ReplyKeyboardMarkup, BotCommand
+import random
+from telegram import Update, ReplyKeyboardMarkup, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
@@ -41,7 +42,7 @@ USER_KEYBOARD = ReplyKeyboardMarkup([
     ['🎧 সাপোর্ট', '🙋‍♂️ আমি নতুন']
 ], resize_keyboard=True)
 
-# এডমিনের জন্য বিশেষ কিবোর্ড লেআউট (রিজেক্ট বাটনসহ সাজানো)
+# এডমিনের জন্য বিশেষ কিবোর্ড লেআউট
 ADMIN_KEYBOARD = ReplyKeyboardMarkup([
     ['📋 পেন্ডিং লিস্ট', '📝 কাজ •', '💵 ব্যালেন্স'], 
     ['🔎 লিংক চেক', '💰 টাকা উত্তোলন', '🎁 My Referrals'], 
@@ -78,7 +79,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"❌ প্রথমে আমাদের চ্যানেলে জয়েন করুন: {CHANNEL_USERNAME}\nতারপর নিচে '✅ Joined ✅' বাটনে চাপ দিন।", reply_markup=ReplyKeyboardMarkup([['✅ Joined ✅']], resize_keyboard=True))
 
-# 📋 এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা (/pending)
+# এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা
 async def view_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     msg = "📋 **পেন্ডিং কাজের তালিকা:**\n━━━━━━━━━━━━━━━\n"
@@ -91,7 +92,7 @@ async def view_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কারণ]`"
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক (/check)
+# এডমিন কমান্ড ২: লিংক চেক
 async def check_user_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
@@ -112,7 +113,7 @@ async def check_user_links(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/check ইউজার_আইডি`")
 
-# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা (/approve)
+# এডমিন কমান্ড ৩: কাজ এপ্রুভ করা
 async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
@@ -137,7 +138,7 @@ async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/approve ইউজার_আইডি টাকার_পরিমাণ`")
 
-# ❌ এডমিন কমান্ড ৫: কাজ রিজেক্ট করা (/reject)
+# এডমিন কমান্ড ৪: কাজ রিজেক্ট করা
 async def reject_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
@@ -161,7 +162,7 @@ async def reject_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/reject ইউজার_আইডি রিজেক্টের_কারণ`")
 
-# ➕ এডমিন কমান্ড ৩: সরাসরি ব্যালেন্স যোগ করা (/add)
+# এডমিন কমান্ড ৫: সরাসরি ব্যালেন্স যোগ করা
 async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     try:
@@ -175,6 +176,28 @@ async def add_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except: pass
     except: 
         await update.message.reply_text("❌ ভুল ফরম্যাট! লিখুন: `/add ইউজার_আইডি পরিমাণ`")
+
+
+# 🔘 ইনলাইন বাটন ক্লিক হ্যান্ডেলার
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    
+    if query.data == "start_insta_task":
+        text_msg = (
+            "👤 **Username:** `rohyfv770`\n"
+            "🔐 **Password:** `kamrol@04`\n\n"
+            "📸 উপরের ইউজারনেম এবং পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন। "
+            "তারপর নিচে **2FA Set** বাটনে ক্লিক করুন। 🤪"
+        )
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔐 2FA Set", callback_data="set_2fa")]])
+        await query.message.reply_text(text_msg, parse_mode="Markdown", reply_markup=keyboard)
+        
+    elif query.data == "set_2fa":
+        USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
+        await query.message.reply_text("🔑 **2FA Key টি দিন:** ⤵️")
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -192,7 +215,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not await is_user_joined(context, user_id): return
 
-    # 🛠️ এডমিন বাটন কন্ডিশনসমূহ
+    # এডমিন বাটন কন্ডিশনসমূহ
     if user_id == ADMIN_ID:
         if text == '📋 পেন্ডিং লিস্ট':
             await view_pending(update, context)
@@ -238,8 +261,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await add_balance(update, context)
         return
 
-    # [কাজ জমা নেওয়ার লজিক]
-    if USER_STATES.get(user_id) == 'WAITING_FOR_ID':
+    # ইউজার যখন 2FA Key টেক্সট হিসেবে পাঠাবে
+    if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
             await start(update, context)
@@ -248,17 +271,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        BOT_DATA["pending_links"][str_user_id].append(text)
+        BOT_DATA["pending_links"][str_user_id].append(f"2FA Key: {text}")
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {first_name}\n🆔 আইডি: `{user_id}`\n🔗 @{username}\n\n📝 **লিংক/আইডি:**\n{text}\n\n📊 এই ইউজারের মোট পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_user_id]}টি"
+        msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {first_name}\n🆔 আইডি: `{user_id}`\n🔗 @{username}\n\n📝 **2FA Key:**\n`{text}`\n\n📊 এই ইউজারের মোট পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_user_id]}টি"
         await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode="Markdown")
-        await update.message.reply_text(f"✅ আপনার ইনস্টাগ্রাম আইডি/লিংকটি সফলভাবে জমা হয়েছে!\n📥 আপনার মোট {BOT_DATA['pending_counts'][str_user_id]}টি কাজ পেন্ডিং আছে। এডমিন চেক করে মেইন ব্যালেন্সে টাকা দিয়ে দেবেন।", reply_markup=current_keyboard)
+        
+        dummy_otp = str(random.randint(100000, 999999))
+        
+        reply_msg = (
+            "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:\n"
+            "**নিচের বাটনে চাপ দিয়ে কোডটি kopi করুন** ⤵️"
+        )
+        bottom_keyboard = ReplyKeyboardMarkup([['✅ অ্যাকাউন্ট খোলা শেষ']], resize_keyboard=True)
+        otp_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"📋 {dummy_otp}", callback_data="copy_code")]])
+        
+        await update.message.reply_text(reply_msg, parse_mode="Markdown", reply_markup=otp_keyboard)
+        await update.message.reply_text("প্রক্রিয়াটি সম্পন্ন করুন:", reply_markup=bottom_keyboard)
+        
         USER_STATES[user_id] = None
         return
 
-    # [টাকা উত্তোলন - নাম্বার ইনপুট]
+    # টাকা উত্তোলন - নাম্বার ইনপুট
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
@@ -275,7 +310,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"👇 কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
         return
 
-    # [টাকা উত্তোলন - অ্যামাউন্ট ভেরিফিকেশন]
+    # টাকা উত্তোলন - অ্যামাউন্ট ভেরিফিকেশন
     if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
@@ -312,12 +347,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in USER_DATA: del USER_DATA[user_id]
         return
 
-    # 🛠️ মেইন মেনু কন্ডিশন
+    # মেইন মেনু কন্ডিশনসমূহ
     if '📝 কাজ •' in text:
-        await update.message.reply_text("সিলেক্ট করুন:", reply_markup=ReplyKeyboardMarkup([['ইনস্টাগ্রাম কাজ >'], ['⬅️ ফিরে যান']], resize_keyboard=True))
-    elif text == 'ইনস্টাগ্রাম কাজ >':
-        USER_STATES[user_id] = 'WAITING_FOR_ID'
-        await update.message.reply_text("👇 আইডি বা কাজের লিংকটি পাঠান:", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
+        await update.message.reply_text("সিলেন্ট করুন:", reply_markup=ReplyKeyboardMarkup([['ইন্সটাগ্রাম কাজ >'], ['⬅️ ফিরে যান']], resize_keyboard=True))
+    elif text == 'ইন্সটাগ্রাম কাজ >':
+        inline_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("ইন্সটাগ্রাম 2fa (৳3.00)", callback_data="start_insta_task")]])
+        await update.message.reply_text("• সিলেক্ট করুন:", reply_markup=inline_keyboard)
+    elif text == '✅ অ্যাকাউন্ট খোলা শেষ':
+        await update.message.reply_text("✅ আপনার সাবমিশন সফল হয়েছে! এডমিন চেক করার পর ব্যালেন্স যোগ হবে।", reply_markup=current_keyboard)
     elif '💰 টাকা উত্তোলন' in text:
         await update.message.reply_text("📩 মাধ্যম সিলেক্ট করুন:", reply_markup=ReplyKeyboardMarkup([['bKash', 'Nagad'], ['⬅️ ফিরে যান']], resize_keyboard=True))
     elif text == 'bKash':
@@ -343,7 +380,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=current_keyboard)
     elif '🙋‍♂️ আমি নতুন' in text:
         await update.message.reply_text(f"আমাদের অফিশিয়াল চ্যানেলে জয়েন হয়ে কাজ শুরু করে দিন।\nLink: {CHANNEL_USERNAME}", reply_markup=current_keyboard)
-    elif '🎧 সাপোর্ট' in text:
+   elif '🎧 সাপোর্ট' in text:
         await update.message.reply_text("🎧 যেকোনো সমস্যায় সাপোর্ট আইডিতে মেসেজ দিন:\n👉 @nafin_4x_team", reply_markup=current_keyboard)
     elif '🎁 My Referrals' in text:
         await update.message.reply_text("🎁 আপনার রেফারেল সিস্টেমটি খুব শীঘ্রই চালু করা হবে!", reply_markup=current_keyboard)
@@ -360,6 +397,9 @@ def main():
     app.add_handler(CommandHandler("approve", approve_work))
     app.add_handler(CommandHandler("reject", reject_work))
     app.add_handler(CommandHandler("add", add_balance))
+    
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling()
 
