@@ -118,7 +118,6 @@ async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         target_id = context.args[0]
         amount = float(context.args[1])
-        # ৩ নম্বর আর্গুমেন্টে সংখ্যা থাকলে সেটি নেবে, না থাকলে সম্পূর্ণ কাজ এপ্রুভ করবে
         count_to_approve = int(context.args[2]) if len(context.args) > 2 else None
         
         if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
@@ -127,7 +126,6 @@ async def approve_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if count_to_approve is None or count_to_approve >= total_pending:
                 count_to_approve = total_pending
             
-            # পেন্ডিং লিস্ট থেকে এপ্রুভ হওয়া পরিমাণের লিংক বাদ দেওয়া
             if str(target_id) in BOT_DATA["pending_links"]:
                 BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_approve:]
             
@@ -159,7 +157,6 @@ async def reject_work(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if count_to_reject >= total_pending:
                 count_to_reject = total_pending
             
-            # পেন্ডিং লিস্ট থেকে রিজেক্ট হওয়া পরিমাণের লিংক বাদ দেওয়া
             if str(target_id) in BOT_DATA["pending_links"]:
                 BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_reject:]
             
@@ -360,4 +357,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"আমাদের অফিশিয়াল চ্যানেলে জয়েন হয়ে কাজ শুরু করে দিন।\nLink: {CHANNEL_USERNAME}", reply_markup=current_keyboard)
     elif '🎧 সাপোর্ট' in text:
         await update.message.reply_text("🎧 যেকোনো সমস্যায় সাপোর্ট আইডিতে মেসেজ দিন:\n👉 @nafin_4x_team", reply_markup=current_keyboard)
-    elif '🎁 My 
+    elif '🎁 My Referrals' in text:
+        await update.message.reply_text("🎁 আপনার রেফারেল সিস্টেমটি খুব শীঘ্রই চালু করা হবে!", reply_markup=current_keyboard)
+    elif '⬅️ ফিরে যান' in text: 
+        await start(update, context)
+    else: 
