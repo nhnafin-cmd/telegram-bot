@@ -192,7 +192,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "তারপর নিচে **2FA Set** বাটনে ক্লিক করুন। 🤪"
         )
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔐 2FA Set", callback_data="set_2fa")]])
-        await query.message.reply_text(text_msg, parse_mode="Markdown", keyboard=keyboard)
+        # এখানে keyboard=keyboard এর জায়গায় reply_markup=keyboard করে দেওয়া হয়েছে
+        await query.message.reply_text(text_msg, parse_mode="Markdown", reply_markup=keyboard)
+        
+    elif query.data == "set_2fa":
+        # সরাসরি কি না চেয়ে প্রথমে নতুন খোলা অ্যাকাউন্টের ইউজারনেম চাওয়া হচ্ছে
+        USER_STATES[user_id] = 'WAITING_FOR_USERNAME'
+        await query.message.reply_text("👇 আপনি যে ইউজারনেম দিয়ে অ্যাকাউন্ট খুলেছেন সেটি দিন:")
+        
         
     elif query.data == "set_2fa":
         # সরাসরি কি না চেয়ে প্রথমে নতুন খোলা অ্যাকাউন্টের ইউজারনেম চাওয়া হচ্ছে
