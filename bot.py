@@ -258,15 +258,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             USER_STATES[user_id] = 'WAITING_FOR_CHECK_ID'
             await update.message.reply_text("👇 যে ইউজারের লিংক দেখতে চান তার টেলিগ্রাম আইডি দিন:", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
             return
-                elif text == '✅ এপ্রুভ কাজ':
+        elif text == '✅ এপ্রুভ কাজ':
             USER_STATES[user_id] = 'WAITING_FOR_APPROVE_DATA'
-            await update.message.reply_text("👇 ইউজার আইডি, টাকার পরিমাণ এবং কয়টি আইডি এপ্রুভ করবেন স্পেস দিয়ে লিখুন\n(যেমন: `7831606559 30 1`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
+            await update.message.reply_text("👇 ইউজার আইডি এবং টাকার পরিমাণ স্পেস দিয়ে লিখুন\n(যেমন: `12345678 20`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
             return
         elif text == '❌ রিজেক্ট কাজ':
             USER_STATES[user_id] = 'WAITING_FOR_REJECT_DATA'
-            await update.message.reply_text("👇 ইউজার আইডি, রিজেক্টের কারণ এবং কয়টি আইডি রিজেক্ট করবেন স্পেস দিয়ে লিখুন\n(যেমন: `7831606559 pass_vul 1`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
+            await update.message.reply_text("👇 ইউজার আইডি এবং রিজেক্ট করার কারণ স্পেস দিয়ে লিখুন\n(যেমন: `12345678 পাসওয়ার্ড_ভুল`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
             return
-        
         elif text == '➕ ব্যালেন্স যোগ':
             USER_STATES[user_id] = 'WAITING_FOR_ADD_DATA'
             await update.message.reply_text("👇 ইউজার আইডি এবং অ্যাড করার টাকার পরিমাণ স্পেস দিয়ে লিখুন\n(যেমন: `12345678 50`):", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
