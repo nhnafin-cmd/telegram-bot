@@ -1,6 +1,9 @@
 import os
 import json
 import random
+import datetime  # 📅 তারিখের জন্য নতুন ইমপোর্ট
+import string    # 👤 ইউজারনেমের অক্ষরের জন্য নতুন ইমপোর্ট
+
 from telegram import Update, ReplyKeyboardMarkup, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
@@ -11,7 +14,28 @@ ADMIN_ID = 7831606559  # ⚠️ এখানে আপনার আসল টে
 
 BALANCE_FILE = "balances.json"
 
+# ==========================================
+# 🟢 নতুন অটোমেশন হেল্পার ফাংশনসমূহ
+# ==========================================
+
+# 📅 প্রতিদিনের তারিখ অনুযায়ী পাসওয়ার্ড জেনারেটর (যেমন: ৫ তারিখ হলে nagi@05)
+def get_daily_password():
+    today = datetime.datetime.now()
+    day_str = today.strftime("%d")
+    return f"nagi@{day_str}"
+
+# 👤 ইনস্টাগ্রামের জন্য ইউনিক ইউজারনেম জেনারেটর
+def generate_unique_username():
+    prefixes = ['owl', 'insta', 'user', 'itx', 'id']
+    prefix = random.choice(prefixes)
+    random_str = ''.join(random.choices(string.ascii_lowercase, k=3))
+    random_num = random.randint(10000, 99999)
+    
+    return f"{prefix}.{random_str}{random_num}"
+
+# ==========================================
 # ডাটা লোড এবং সেভ করার সিস্টেম
+# ==========================================
 def load_data():
     if os.path.exists(BALANCE_FILE):
         with open(BALANCE_FILE, "r") as f:
@@ -34,6 +58,7 @@ def save_data(data):
 BOT_DATA = load_data()
 USER_STATES = {}
 USER_DATA = {}
+
 
 # সাধারণ ইউজারদের জন্য কাস্টম কিবোর্ড লেআউট
 USER_KEYBOARD = ReplyKeyboardMarkup([
