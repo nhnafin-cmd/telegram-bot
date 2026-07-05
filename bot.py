@@ -202,23 +202,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     
     if query.data == "start_insta_task":
-        # এখানে কোনো বাটন বা আগের মেসেজ থাকবে না, সরাসরি ইউজারনেম চাইবে
-        USER_STATES[user_id] = 'WAITING_FOR_USERNAME'
-        await query.message.reply_text("username din")
-            # 👤 ১. ইউজার যখন তার খোলা অ্যাকাউন্টের ইউজারনেম ইনপুট দেবে
-    if USER_STATES.get(user_id) == 'WAITING_FOR_USERNAME':
-        if '⬅️ ফিরে যান' in text:
-            USER_STATES[user_id] = None
-            await start(update, context)
-            return
-            
-        if user_id not in USER_DATA: USER_DATA[user_id] = {}
-        USER_DATA[user_id]['submitted_username'] = text.strip()
+        # অটোমেটিক ইউনিক ইউজারনেম এবং আজকের পাসওয়ার্ড জেনারেট করা হলো
+        generated_username = generate_unique_username()
+        current_password = get_daily_password()
         
-        # ইউজারনেম পাওয়ার পর এখন শুধু "2fa din" চাবে
+        # ইউজারের টেম্পোরারি ডাটাতে ইউজারনেমটি সেভ রাখা হচ্ছে পরবর্তী ধাপের জন্য
+        if user_id not in USER_DATA: 
+            USER_DATA[user_id] = {}
+        USER_DATA[user_id]['submitted_username'] = generated_username
+        
+        # পরবর্তী স্টেট সেট করা হলো (সরাসরি 2FA Key এর জন্য ওয়েট করবে)
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
-        await update.message.reply_text("2fa din")
-        return
+        
+        # ইউজারকে দেখানোর মেসেজ
+        info_msg = (
+            "👇 **নিচের ইউজারনেম ও পাসওয়ার্ড দিয়ে ইনস্টাগ্রাম অ্যাকাউন্ট খুলুন:**\n\n"
+            f"👤 Username: `{generated_username}`\n"
+            f"🔐 Password: `{current_password}`\n\n"
+            "⚠️ *ইউজারনেম এবং পাসওয়ার্ডের ওপর টাচ করলেই কপি হয়ে যাবে।*\n"
+            "**অ্যাকাউন্ট খোলা শেষ হলে, ইনস্টাগ্রাম থেকে পাওয়া 2FA Key টি এখানে পাঠান:**"
+        )
+        
+        # ফিরে যাওয়ার বাটন সহ মেসেজ পাঠানো
+        back_keyboard = ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True)
+        await query.message.reply_text(info_msg, parse_mode="Markdown", reply_markup=back_keyboard)
+        
       
         
     elif query.data == "set_2fa":
