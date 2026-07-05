@@ -310,7 +310,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("2fa din")
         return
 
-    # 🔑 ২. ইউজার যখন ইউজারনেম দেওয়ার পর 2FA Key ইনপুট দেবে
+        # 🔑 ২. ইউজার যখন ইউজারনেম দেওয়ার পর 2FA Key ইনপুট দেবে
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         if '⬅️ ফিরে যান' in text:
             USER_STATES[user_id] = None
@@ -319,20 +319,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
             
         submitted_user = USER_DATA.get(user_id, {}).get('submitted_username', 'N/A')
-        submitted_key = text.strip().replace(" ", "").upper() # স্পেস কেটে বড় হাতের করা হলো
+        
+        # ১. কি-এর ভেতরের সব স্পেস রিমুভ করা এবং বড় হাতের অক্ষরে কনভার্ট করা
+        submitted_key = text.strip().replace(" ", "").upper() 
+        
+        # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
+        missing_padding = len(submitted_key) % 8
+        if missing_padding:
+            submitted_key += '=' * (8 - missing_padding)
         
         # 🛡️ আসল ইনস্টাগ্রাম ওটিপি (Real 2FA Code) জেনারেট করার লজিক
         try:
             totp = pyotp.TOTP(submitted_key)
-            real_otp = totp.now() # ১00% রিয়েল কোড জেনারেট হবে
-        except Exception:
-            # কি-তে ভুল থাকলে ব্যাকআপ ডামি কোড যাতে ক্র্যাশ না করে
-            real_otp = str(random.randint(100000, 999999))
+            real_otp = totp.now() # এটি একদম ইনস্টাগ্রাম অ্যাপের মতোই রিয়েল কোড দিবে
+        except Exception as e:
+            # যদি কি একদমই ইনভ্যালিড বা ফেক হয়
+            await update.message.reply_text("❌ আপনার দেওয়া 2FA Key টি সঠিক নয়! দয়া করে আবার চেষ্টা করুন।")
+            return
         
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        # ডাটাবেজে ইউজারনেম ও কি একসাথে ফরম্যাট করে সেভ রাখা হচ্ছে
         saved_task_format = f"👤 Username: {submitted_user} | 🔑 2FA Key: {submitted_key}"
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
@@ -351,22 +358,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
         
-        # 📤 ইউজারের জন্য মেসেজ এবং কপি করার সুবিধা
+        # 📤 ইউজারের জন্য মেসেজ এবং ওয়ান-ট্যাপ কপি করার সুবিধা
         reply_msg = (
-            "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:\n"
+            "⚠️ **কোডটি দ্রুত ইনস্টাগ্রামে বসান (কোডটি মাত্র ৩০ সেকেন্ড কার্যকর থাকে):**\n"
             "**নিচের কোডটির ওপর চাপ দিয়ে কপি করুন** ⤵️"
         )
         bottom_keyboard = ReplyKeyboardMarkup([['✅ অ্যাকাউন্ট খোলা শেষ']], resize_keyboard=True)
         
-        # ইউজারকে কোডটি পাঠানো হচ্ছে
         await update.message.reply_text(reply_msg, parse_mode="Markdown")
-        await update.message.reply_text(f"`{real_otp}`", parse_mode="Markdown") # এটি ওয়ান-ট্যাপ কপি হবে
+        await update.message.reply_text(f"`{real_otp}`", parse_mode="Markdown") # ওয়ান-ট্যাপ কপি
         await update.message.reply_text("প্রক্রিয়াটি সম্পন্ন করুন:", reply_markup=bottom_keyboard)
         
-        # স্টেট ফিনিশ ও ক্লিয়ার করা
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
         return
+    
         
         
 
