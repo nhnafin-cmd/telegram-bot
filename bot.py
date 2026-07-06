@@ -356,23 +356,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ১. কি-এর ভেতরের সব স্পেস রিমুভ করা এবং বড় হাতের অক্ষরে কনভার্ট করা
         submitted_key = text.strip().replace(" ", "").upper() 
         
-        # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
+                # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
         missing_padding = len(submitted_key) % 8
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-                # 🛡️ আসল ইনস্টাগ্রাম ওটিপি (Real 2FA Code - ১০০% ওয়ার্কিং ফিক্স)
+        # 🛡️ ২এফএ অথেনটিকেটর সাইটের API থেকে সরাসরি রিয়েল কোড আনার লজিক
+        import urllib.request
+        import json
+        
         try:
-            # কোনো ক্যারেক্টার বাদ না দিয়ে ডিরেক্ট কি থেকে স্ট্যান্ডার্ড ওটিপি নেওয়া হচ্ছে
-            totp = pyotp.TOTP(submitted_key)
-            real_otp = totp.now() # এটি একদম অফিশিয়াল গুগল অথেনটিকেটরের মতো রিয়েল কোড দেবে
+            # কি-এর সব স্পেস কেটে এপিআই ফরম্যাটে রেডি করা হচ্ছে
+            clean_key = submitted_key.replace(" ", "")
+            api_url = f"https://2fa.live/api/v1/totp/{clean_key}"
+            
+            # সাইট থেকে রিয়েল-টাইম ওটিপি রিকোয়েস্ট পাঠানো হচ্ছে
+            req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                res_data = json.loads(response.read().decode())
+                real_otp = res_data.get("token")
+                
+            # যদি এপিআই কোনো কারণে রেসপন্স না করে, তবে পাইথনের লোকাল ব্যাকআপ রান হবে
+            if not real_otp:
+                totp = pyotp.TOTP(submitted_key)
+                real_otp = totp.now()
         except Exception:
-            # যদি কোনো কারণে কোড জেনারেট না হয়, তবে ব্যাকআপ সিস্টেম
+            # সব ফেইল করলে বট ক্র্যাশ এড়াতে ব্যাকআপ কোড জেনারেট করবে
             try:
-                import base64
-                missing_padding = len(submitted_key) % 8
-                if missing_padding:
-                    submitted_key += '=' * (8 - missing_padding)
                 totp = pyotp.TOTP(submitted_key)
                 real_otp = totp.now()
             except Exception:
@@ -388,6 +398,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
+        
         
         
         # এডমিন নোটিফিকেশন পাঠানো
