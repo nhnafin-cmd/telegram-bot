@@ -356,23 +356,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ১. কি-এর ভেতরের সব স্পেস রিমুভ করা এবং বড় হাতের অক্ষরে কনভার্ট করা
         submitted_key = text.strip().replace(" ", "").upper() 
         
-                # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
+                        # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
         missing_padding = len(submitted_key) % 8
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-        # 🛡️ ২এফএ অথেনটিকেটর সাইটের API থেকে সরাসরি রিয়েল কোড আনার লজিক
+        # 🛡️ ২এফএ অথেনটিকেটর সাইটের API থেকে সরাসরি রিয়েল কোড আনার লজিক (SSL ফিক্স সহ)
         import urllib.request
         import json
+        import ssl
         
         try:
             # কি-এর সব স্পেস কেটে এপিআই ফরম্যাটে রেডি করা হচ্ছে
             clean_key = submitted_key.replace(" ", "")
             api_url = f"https://2fa.live/api/v1/totp/{clean_key}"
             
+            # 🔒 পাইথনের এসএসএল ভেরিফিকেশন বাইপাস করা হচ্ছে যেন সার্ভার রিকোয়েস্ট ব্লক না করে
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
             # সাইট থেকে রিয়েল-টাইম ওটিপি রিকোয়েস্ট পাঠানো হচ্ছে
             req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, context=ctx, timeout=5) as response:
                 res_data = json.loads(response.read().decode())
                 real_otp = res_data.get("token")
                 
@@ -398,6 +404,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
+                
         
         
         
