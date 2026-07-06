@@ -356,48 +356,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ১. কি-এর ভেতরের সব স্পেস রিমুভ করা এবং বড় হাতের অক্ষরে কনভার্ট করা
         submitted_key = text.strip().replace(" ", "").upper() 
         
-                                        # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
+                                                # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
         missing_padding = len(submitted_key) % 8
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-        # 🛡️ আপনার আইডিয়া অনুযায়ী সরাসরি 'browserscan.net' এর অফিশিয়াল API থেকে কোড আনার লজিক
-        import urllib.request
-        import json
-        import ssl
-        
+        # 🛡️ আসল ওটিপি জেনারেটর (স্ক্রিনশটের বটের মতো ১০০% রিয়েল লজিক)
         try:
-            # কি-এর সব স্পেস কেটে এপিআই ফরম্যাটে রেডি করা হচ্ছে
+            # কি-এর সব স্পেস কেটে ফ্রেশ ও আপারকেস করা হচ্ছে
             clean_key = submitted_key.replace(" ", "").upper()
             
-            # 🔗 Browserscan এর অফিশিয়াল ওটিপি জেনারেটর এপিআই লিংক
-            browserscan_url = f"https://api.browserscan.net/v1/2fa/vcode?secret={clean_key}"
+            # পাইথনের অফিশিয়াল pyotp দিয়ে কোড তৈরি
+            totp = pyotp.TOTP(clean_key)
+            real_otp = totp.now() 
             
-            # এসএসএল সার্টিফিকেটের কারণে যেন লিংক ব্লক না হয় তার জন্য সিকিউরিটি বাইপাস
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            
-            # সাইটে রিকোয়েস্ট পাঠানো হচ্ছে
-            req = urllib.request.Request(browserscan_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, context=ctx, timeout=6) as response:
-                res_data = json.loads(response.read().decode())
-                
-                # browserscan সাইটটি যে আসল কোডটি দিয়েছে, সেটি নেওয়া হলো
-                # তাদের এপিআই ডাটা "data" -> "code" ফরম্যাটে থাকে
-                real_otp = res_data.get("data", {}).get("code")
-                
-            # যদি কোনো কারণে সাইট রেসপন্স না করে, তবে পাইথনের লোকাল ব্যাকআপ রান হবে
-            if not real_otp:
-                totp = pyotp.TOTP(clean_key)
+            # যদি কোনো কারণে কোড খালি আসে বা জেনারেট না হয়, তবে ব্যাকআপ জেনারেশন
+            if not real_otp or len(real_otp) != 6:
+                import base64
                 real_otp = totp.now()
         except Exception:
-            # সব ফেইল করলে পাইথনের ব্যাকআপ কোড জেনারেট করবে
+            # চরম বিপদেও যেন ডামি নাম্বার না আসে, তাই কি থেকে জোর করে কোড বের করার শেষ চেষ্টা
             try:
-                totp = pyotp.TOTP(clean_key)
-                real_otp = totp.now()
+                real_otp = pyotp.TOTP(submitted_key.strip().upper()).now()
             except Exception:
-                real_otp = str(random.randint(100000, 999999))
+                real_otp = "ERROR"
         
         # 📊 ডাটাবেজে কাজ ও পেন্ডিং কাউন্ট সেভ করার লজিক
         if "pending_links" not in BOT_DATA: 
@@ -409,6 +391,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
+        
                          
             
         
