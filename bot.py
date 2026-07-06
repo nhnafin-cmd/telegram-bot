@@ -361,29 +361,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-                # 🛡️ গুগল অথেনটিকেটর অ্যাপের মতো হুবহু কোড জেনারেট করার লজিক
-        import time
+                        # 🛡️ গুগল অথেনটিকেটর স্ট্যান্ডার্ড অনুযায়ী পিওর ২এফএ জেনারেটর
         import pyotp
+        import time
 
         try:
-            # ১. কি-এর সব স্পেস কেটে পরিষ্কার এবং আপারকেস করা হচ্ছে
-            clean_key = submitted_key.replace(" ", "").upper()
+            # ১. কি-এর সব স্পেস কেটে সম্পূর্ণ আপারকেস করা হচ্ছে
+            clean_key = submitted_key.replace(" ", "").strip().upper()
             
-            # ২. গুগল অ্যাপ যেভাবে কি প্রসেস করে, ঠিক সেভাবে বেস-৩২ প্যাডিং ফিক্স
+            # ২. বেস-৩২ ফরম্যাটের প্যাডিং ফিক্স (rstrip করে নতুন করে ৮-এর গুণিতক করা)
+            clean_key = clean_key.rstrip('=')
             missing_padding = len(clean_key) % 8
             if missing_padding:
                 clean_key += '=' * (8 - missing_padding)
             
-            # ৩. গুগল অ্যাপের অ্যালগরিদম সেটআপ
+            # ৩. গুগল অ্যাপ অ্যালগরিদমে কি-টি পাস করা হচ্ছে
             totp = pyotp.TOTP(clean_key)
-            
-            # ৪. গুগল অ্যাপ যে লাইভ কোডটি দেখায়, তা সরাসরি বটের ভেরিয়েবলে সেট হবে
             real_otp = totp.now()
             
-        except Exception:
-            real_otp = "ERROR"
-    
-        
+            # ৪. যদি কারেন্ট টাইম ফেইল করে, তবে ব্যাকআপ হিসেবে কারেন্ট টাইমস্ট্যাম্প পুশ করা
+            if not real_otp or len(real_otp) != 6:
+                real_otp = totp.at(int(time.time()))
+
+        except Exception as e:
+            # কোনো কারণে লাইব্রেরি ক্র্যাশ করলে ডামি টেক্সট না দেখিয়ে ইউজারকে সচেতন করার মেসেজ
+            real_otp = "INVALID_KEY_OR_TIME_ERROR"
+
         # 📊 ডাটাবেজে কাজ ও পেন্ডিং কাউন্ট সেভ করার লজিক
         if "pending_links" not in BOT_DATA: 
             BOT_DATA["pending_links"] = {}
@@ -394,6 +397,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
+
+        # 💬 ইউজারকে মেসেজ ও জেনারেট হওয়া ওটিপি কোড পাঠানোর লজিক
+        if real_otp == "INVALID_KEY_OR_TIME_ERROR":
+            response_text = (
+                "⚠️ **ওটিপি জেনারেট করা সম্ভব হয়নি!**\n\n"
+                "আপনার দেওয়া ২এফএ কি (Key) টি সঠিক নয় অথবা সার্ভার টাইমে সমস্যা আছে। "
+                "অনুগ্রহ করে সঠিক কি-টি পুনরায় কপি করে পাঠান।"
+            )
+        else:
+            response_text = (
+                f"🔒 **আপনার ইনস্টাগ্রাম ২এফএ কোড:** `{real_otp}`\n\n"
+                f"⏱️ কোডটি মাত্র ৩০ সেকেন্ড কার্যকর থাকবে। নিচের কোডটির ওপর চাপ দিয়ে কপি করুন।"
+            )
+            
+        await update.message.reply_text(response_text, parse_mode="Markdown")
+        
         
                          
             
