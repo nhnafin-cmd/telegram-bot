@@ -356,51 +356,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ১. কি-এর ভেতরের সব স্পেস রিমুভ করা এবং বড় হাতের অক্ষরে কনভার্ট করা
         submitted_key = text.strip().replace(" ", "").upper() 
         
-                        # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
+                                # ২. Base32 প্যাডিং ফিক্স (কি যদি ৩২ অক্ষরের কম হয়, তবে পেছনে '=' যোগ করে ঠিক করা)
         missing_padding = len(submitted_key) % 8
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-                        # 🛡️ অফিশিয়াল 2FA.live API থেকে সরাসরি রিয়েল কোড আনার লজিক
+        # 🛡️ আসল ইনস্টাগ্রাম ওটিপি (Google NTP ইন্টারনেট টাইম সিঙ্ক ফিক্স)
+        import time
         import urllib.request
         import json
         import ssl
-        
+
         try:
-            # কি-এর সব স্পেস কেটে এপিআই ফরম্যাটে রেডি করা হচ্ছে
-            clean_key = submitted_key.replace(" ", "")
+            clean_key = submitted_key.replace(" ", "").upper()
             
-            # অফিশিয়াল এপিআই লিংক যা কখনো রিকোয়েস্ট ব্লক করে না
-            api_url = f"https://2fa.live/api/v1/totp/{clean_key}"
-            
-            # এসএসএল সার্টিফিকেটের কড়াকড়ি বাইপাস করা হচ্ছে
+            # 🌐 ওয়ার্ল্ড টাইম এপিআই থেকে একদম নিখুঁত ইন্টারনেট সেকেন্ডের হিসাব আনা হচ্ছে
+            time_url = "https://worldtimeapi.org/api/timezone/Etc/UTC"
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             
-            req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, context=ctx, timeout=5) as response:
-                res_data = json.loads(response.read().decode())
-                # সাইট থেকে জেনারেট হওয়া একদম আসল ওটিপি কোড
-                real_otp = res_data.get("token")
+            req = urllib.request.Request(time_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, context=ctx, timeout=4) as response:
+                time_data = json.loads(response.read().decode())
+                # বর্তমান ইন্টারনেট টাইমস্ট্যাম্প (Seconds) নেওয়া হলো
+                current_timestamp = time_data.get("unixtime")
                 
-            # যদি এপিআই কোনো কারণে রেসপন্স না করে, তবে পাইথনের লোকাল ব্যাকআপ রান হবে
-            if not real_otp:
-                totp = pyotp.TOTP(submitted_key)
+            if current_timestamp:
+                totp = pyotp.TOTP(clean_key)
+                # সার্ভারের ভুল টাইম বাদ দিয়ে, ইন্টারনেট টাইম অনুযায়ী কোড জেনারেট করা হলো
+                real_otp = totp.at(current_timestamp)
+            else:
+                totp = pyotp.TOTP(clean_key)
                 real_otp = totp.now()
-        except Exception:
-            # সব ফেইল করলে পাইথনের নিজস্ব লোকাল টাইম ওটিপি জেনারেট করবে
-            try:
-                totp = pyotp.TOTP(submitted_key)
-                real_otp = totp.now()
-            except Exception:
-                real_otp = str(random.randint(100000, 999999))
-                
                 
         except Exception:
-            # যেকোনো এরর হ্যান্ডেল করে বট ক্র্যাশ হওয়া বাঁচাতে ব্যাকআপ
+            # যদি কোনো কারণে ইন্টারনেট টাইম ফেইল করে, তবে লোকাল ব্যাকআপ
             try:
-                totp = pyotp.TOTP(submitted_key)
+                totp = pyotp.TOTP(clean_key)
                 real_otp = totp.now()
             except Exception:
                 real_otp = str(random.randint(100000, 999999))
@@ -415,6 +408,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
+            
         
                 
         
