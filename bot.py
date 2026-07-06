@@ -361,25 +361,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-        # 🛡️ আসল ওটিপি জেনারেটর (স্ক্রিনশটের বটের মতো ১০০% রিয়েল লজিক)
+                # 🛡️ গুগল অথেনটিকেটর অ্যাপের মতো হুবহু কোড জেনারেট করার লজিক
+        import time
+        import pyotp
+
         try:
-            # কি-এর সব স্পেস কেটে ফ্রেশ ও আপারকেস করা হচ্ছে
+            # ১. কি-এর সব স্পেস কেটে পরিষ্কার এবং আপারকেস করা হচ্ছে
             clean_key = submitted_key.replace(" ", "").upper()
             
-            # পাইথনের অফিশিয়াল pyotp দিয়ে কোড তৈরি
-            totp = pyotp.TOTP(clean_key)
-            real_otp = totp.now() 
+            # ২. গুগল অ্যাপ যেভাবে কি প্রসেস করে, ঠিক সেভাবে বেস-৩২ প্যাডিং ফিক্স
+            missing_padding = len(clean_key) % 8
+            if missing_padding:
+                clean_key += '=' * (8 - missing_padding)
             
-            # যদি কোনো কারণে কোড খালি আসে বা জেনারেট না হয়, তবে ব্যাকআপ জেনারেশন
-            if not real_otp or len(real_otp) != 6:
-                import base64
-                real_otp = totp.now()
+            # ৩. গুগল অ্যাপের অ্যালগরিদম সেটআপ
+            totp = pyotp.TOTP(clean_key)
+            
+            # ৪. গুগল অ্যাপ যে লাইভ কোডটি দেখায়, তা সরাসরি বটের ভেরিয়েবলে সেট হবে
+            real_otp = totp.now()
+            
         except Exception:
-            # চরম বিপদেও যেন ডামি নাম্বার না আসে, তাই কি থেকে জোর করে কোড বের করার শেষ চেষ্টা
-            try:
-                real_otp = pyotp.TOTP(submitted_key.strip().upper()).now()
-            except Exception:
-                real_otp = "ERROR"
+            real_otp = "ERROR"
+    
         
         # 📊 ডাটাবেজে কাজ ও পেন্ডিং কাউন্ট সেভ করার লজিক
         if "pending_links" not in BOT_DATA: 
