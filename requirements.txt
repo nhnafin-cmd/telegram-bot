@@ -1,2 +1,2 @@
-python-telegram-bot==21.3
+pyTelegramBotAPI==4.26.0
 pyotp==2.9.0
