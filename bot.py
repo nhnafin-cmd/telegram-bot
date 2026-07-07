@@ -47,7 +47,7 @@ BOT_DATA = load_data()
 USER_STATES = {}
 USER_DATA = {}
 
-# 📆 ডাইনামিক ইউজারনেম এবং প্রতিদিনের তারিখ অনুযায়ী সঠিক ৪ অক্ষরের পাসওয়ার্ড জেনারেটর
+# 📆 ডাইনামিক ইউজারনেম এবং পাসওয়ার্ড জেনারেটর
 def generate_credentials():
     first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
     last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
@@ -57,7 +57,7 @@ def generate_credentials():
     password = f"nagi@{today_date}"
     return username, password
 
-# 📱 সাধারণ ইউজারদের জন্য কিবোর্ডের নিচের স্থায়ী মেনু (Reply Keyboard)
+# 📱 সাধারণ ইউজারদের জন্য কিবোর্ডের নিচের স্থায়ী মেনু
 def send_user_main_menu(chat_id, text_msg="🧭 **মেইন মেনু:**"):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
@@ -73,13 +73,12 @@ def send_user_main_menu(chat_id, text_msg="🧭 **মেইন মেনু:**")
         types.KeyboardButton('🙋‍♂️ আমি নতুন')
     )
     
-    # ইউজার যদি এডমিন হন, তাহলে কিবোর্ডের নিচেই একটা এক্সট্রা বাটন আসবে এডমিন প্যানেলে ফেরার
     if chat_id == ADMIN_ID:
         markup.add(types.KeyboardButton('👑 এডমিন প্যানেল'))
         
     bot.send_message(chat_id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
-# 👑 এডমিনদের জন্য বিশেষ ইনলাইন মেনু (চ্যাটের ভেতরে)
+# 👑 এডমিনদের জন্য বিশেষ ইনলাইন মেনু
 def get_admin_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -169,8 +168,19 @@ def check_user_links_cmd(message):
         return
         
     msg = f"🔎 **ইউজার `{target_id}` এর জমা দেওয়া কাজসমূহ:**\n━━━━━━━━━━━━━━━\n"
-    for i, link in enumerate(links, start=1): msg += f"{i}. {link}\n"
-    bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+    for i, link in enumerate(links, start=1):
+        try:
+            if "|" in link and "Uname:" in link and "2FA:" in link:
+                parts = link.split("|")
+                uname_part = parts[0].replace("Uname:", "").strip()
+                fa_part = parts[1].replace("2FA:", "").strip()
+                msg += f"<b>{i}. Unames:</b> <code>{uname_part}</code>\n<b>   2FA:</b> <code>{fa_part}</code>\n\n"
+            else:
+                msg += f"{i}. <code>{link}</code>\n\n"
+        except Exception:
+            msg += f"{i}. <code>{link}</code>\n\n"
+            
+    bot.send_message(message.chat.id, msg, parse_mode="HTML")
 
 # ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা
 @bot.message_handler(commands=['approve'])
@@ -260,7 +270,6 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    # এডমিন টেক্সট ইনপুট প্রসেস
     if user_id == ADMIN_ID and USER_STATES.get(user_id) in ['WAITING_FOR_CHECK_ID', 'WAITING_FOR_APPROVE_DATA', 'WAITING_FOR_REJECT_DATA', 'WAITING_FOR_ADD_DATA']:
         current_state = USER_STATES[user_id]
         USER_STATES[user_id] = None
@@ -268,6 +277,7 @@ def handle_message(message):
         if current_state == 'WAITING_FOR_CHECK_ID':
             message.text = f"/check {text}"
             check_user_links_cmd(message)
+            return
         elif current_state == 'WAITING_FOR_APPROVE_DATA':
             message.text = f"/approve {text}"
             approve_work(message)
@@ -281,7 +291,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # --- নিচের স্থায়ী বড় কিবোর্ডের বাটন ক্লিক হ্যান্ডেলিং ---
+    # --- কিবোর্ড বাটন ক্লিক হ্যান্ডেলিং ---
     if text == '📝 কাজ •':
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম কাজ >', callback_data='work_insta_step'))
@@ -321,7 +331,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 🔑 2FA Key ইনপুট নেওয়ার অংশ
+    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক কপি বাটন সিস্টেম
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -334,11 +344,11 @@ def handle_message(message):
             USER_DATA[user_id]['2fa_key'] = user_input
             
             bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
+            bot.send_message(message.chat.id, "নিচের বাটনে চাপ দিয়ে কোডটি কপি করুন 📊")
             
             markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton("📋 কপি করুন", callback_data="copy_code"))
-            bot.send_message(message.chat.id, f"নিচের বাটনে চাপ দিয়ে কোডটি কপি করুন 📊", reply_markup=markup)
-            bot.send_message(message.chat.id, f"<code>{code}</code>", parse_mode='HTML')
+            markup.add(types.InlineKeyboardButton(f"📋 {code}", switch_inline_query_current_chat=code))
+            bot.send_message(message.chat.id, "👇 কোডটি কপি করতে নিচের বাটনে ক্লিক করুন:", reply_markup=markup)
             
             finish_markup = types.InlineKeyboardMarkup()
             finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট খোলা শেষ', callback_data='work_finish_done'))
@@ -350,7 +360,6 @@ def handle_message(message):
             USER_STATES[user_id] = None
         return
 
-    # [উইথড্র নাম্বার ইনপুট]
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['number'] = text
@@ -362,7 +371,6 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"👇 কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):")
         return
 
-    # [উইথড্র অ্যামাউন্ট ভেরিফিকেশন]
     if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
         try:
             amt = float(text)
@@ -415,14 +423,12 @@ def callback_inline(call):
             bot.send_message(call.message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗")
             send_user_main_menu(call.message.chat.id)
         else:
-            bot.answer_callback_query(call.id, "⚠️ আপনি এখনো জয়েন করেননি!", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ আপনি অন্তত জয়েন করেননি!", show_alert=True)
         return
 
     if not check_joined(user_id): return
 
-    # --- ইনলাইন সাব-মেনু অ্যাকশন ---
     if call.data == 'work_insta_step':
-        # 🎯 এখানে রেট ৩.০০ টাকা করা হয়েছে আপনার রিকোয়েস্ট অনুযায়ী
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম 2fa (৳৩.০০)', callback_data='work_insta_start_generate'))
         bot.edit_message_text("🟣 সিলেক্ট করুন:", call.message.chat.id, call.message.message_id, reply_markup=markup)
@@ -433,8 +439,8 @@ def callback_inline(call):
         USER_DATA[user_id]['generated_username'] = uname
         
         msg = (
-            f"👤 Username: <code>{uname}</code>\n"
-            f"🔐 Password: <code>{upass}</code>\n\n"
+            f"👤 Username: <code>{uname}</code> (কপি করতে টাচ করুন)\n"
+            f"🔐 Password: <code>{upass}</code> (কপি করতে টাচ করুন)\n\n"
             f"📸 উপরের ইউজারনেম এবং পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন। তারপর নিচে 2FA Set বাটনে ক্লিক করুন 🤪"
         )
         markup = types.InlineKeyboardMarkup()
@@ -446,9 +452,6 @@ def callback_inline(call):
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
         bot.send_message(call.message.chat.id, "🔑 **2FA Key টি দিন:** ⤵️")
         bot.answer_callback_query(call.id)
-        
-    elif call.data == "copy_code":
-        bot.answer_callback_query(call.id, "কোডটি কপি করা হয়েছে!", show_alert=False)
         
     elif call.data == 'work_finish_done':
         generated_uname = USER_DATA.get(user_id, {}).get('generated_username', 'Unknown_User')
@@ -465,7 +468,8 @@ def callback_inline(call):
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
         
-        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://https://t.me/OfficialInstagramSellBD")
+        # এখানে আপনার অফিশিয়াল চ্যানেলের লিংক বসানো হয়েছে
+        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/OfficialInstagramSellBD")
         send_user_main_menu(call.message.chat.id)
         
         if user_id in USER_DATA: del USER_DATA[user_id]
@@ -483,7 +487,6 @@ def callback_inline(call):
         send_user_main_menu(call.message.chat.id, "🧭 **মেইন মেনু চালু করা হয়েছে নিচে:**")
         bot.answer_callback_query(call.id)
 
-    # --- এডমিন প্যানেল ইনলাইন অ্যাকশন ---
     elif call.data == 'admin_pending':
         bot.answer_callback_query(call.id)
         class DummyMessage:
@@ -516,12 +519,11 @@ def callback_inline(call):
 if __name__ == '__main__':
     try:
         bot.set_my_commands([
-            telebot.types.BotCommand("start", "🤖 বট चालू করুন / মেইন মেনু"),
+            telebot.types.BotCommand("start", "🤖 বট চালু করুন / মেইন মেনু"),
             telebot.types.BotCommand("pending", "📋 পেন্ডিং কাজ দেখুন (এডমিন)"),
             telebot.types.BotCommand("check", "🔎 ইউজারের লিংক চেক করুন (এডমিন)")
         ])
     except Exception as e:
         print(f"Error setting commands: {e}")
 
-    print("Bot is running perfectly with Bottom Reply Menu and 3.00 BDT Rate...")
     bot.infinity_polling(skip_pending=True)
