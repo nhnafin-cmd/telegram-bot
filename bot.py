@@ -229,22 +229,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "start_insta_task":
         import random
         
-        # 🔒 অন্য কোনো ফাংশনের ওপর নির্ভর না করে এখানেই ডাইরেক্ট ইউনিক ইউজারনেম জেনারেট করা হলো
         random_suffix = random.randint(10000, 99999)
         generated_username = f"itx.nxd{random_suffix}"
-        current_password = f"nagi@06" # ফিক্সড পাসওয়ার্ড অথবা আপনার ডেইলি ফরম্যাট
+        current_password = f"nagi@06"
         
-        # ইউজারের টেম্পোরারি ডাটাতে ইউজারনেমটি সেভ রাখা হচ্ছে পরবর্তী ধাপের জন্য
         if 'USER_DATA' in globals() or 'USER_DATA' in locals():
             if user_id not in USER_DATA: 
                 USER_DATA[user_id] = {}
             USER_DATA[user_id]['submitted_username'] = generated_username
         
-        # পরবর্তী স্টেট সেট করা হলো (সরাসরি 2FA Key এর জন্য ওয়েট করবে)
         if 'USER_STATES' in globals() or 'USER_STATES' in locals():
             USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
         
-        # ইউজারকে দেখানোর মেসেজ
         info_msg = (
             "👇 **নিচের ইউজারনেম ও পাসওয়ার্ড দিয়ে ইনস্টাগ্রাম অ্যাকাউন্ট খুলুন:**\n\n"
             f"👤 Username: `{generated_username}`\n"
@@ -253,7 +249,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "**অ্যাকাউন্ট খোলা শেষ হলে, ইনস্টাগ্রাম থেকে পাওয়া 2FA Key টি এখানে পাঠান:**"
         )
         
-        # ফিরে যাওয়ার বাটন সহ মেসেজ পাঠানো
         from telegram import ReplyKeyboardMarkup
         back_keyboard = ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True, one_time_keyboard=True)
         
@@ -264,13 +259,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown",
                 reply_markup=back_keyboard
             )
-        except Exception as e:
-            # যদি কোনো কারণে মার্কডাউন ফরম্যাটে এরর আসে, তবে নরমাল টেক্সট হিসেবে পাঠানো হবে যেন বট সাইলেন্ট না থাকে
+        except Exception:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text=f"👇 নিচের ইউজারনেম ও পাসওয়ার্ড দিয়ে ইনস্টাগ্রাম অ্যাকাউন্ট খুলুন:\n\n👤 Username: {generated_username}\n🔐 Password: {current_password}\n\nঅ্যাকাউন্ট খোলা শেষ হলে, ইনস্টাগ্রাম থেকে পাওয়া 2FA Key টি এখানে পাঠান:",
                 reply_markup=back_keyboard
-        )
+            )
+            
         
         
         # ডাইরেক্ট সেন্ড মেসেজ লজিক
