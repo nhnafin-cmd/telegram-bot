@@ -13,7 +13,7 @@ USER_STATES = {}
 # 📲 ১. /start দিলে যে মেইন মেনু আসবে (হুবহু স্ক্রিনশটের টেক্সট ও ইমোজি)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    USER_STATES[user_id] = None 
+    USER_STATES[user_id] = 7831606559 
     
     # স্ক্রিনশট ১ অনুযায়ী স্বাগতম মেসেজ
     welcome_text = (
