@@ -248,9 +248,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "**অ্যাকাউন্ট খোলা শেষ হলে, ইনস্টাগ্রাম থেকে পাওয়া 2FA Key টি এখানে পাঠান:**"
         )
         
-        # ফিরে যাওয়ার বাটন সহ মেসেজ পাঠানো
-        back_keyboard = ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True)
-        await query.message.reply_text(info_msg, parse_mode="Markdown", reply_markup=back_keyboard)
+        # ক্র্যাশ এড়ানোর জন্য সলিড কীবোর্ড এবং মেসেজ ফরম্যাট ফিক্স করা হলো
+        from telegram import ReplyKeyboardMarkup
+        back_keyboard = ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True, one_time_keyboard=True)
+        
+        # ডাইরেক্ট সেন্ড মেসেজ লজিক
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=info_msg,
+            parse_mode="Markdown",
+            reply_markup=back_keyboard
+        )
+        
         
       
         
