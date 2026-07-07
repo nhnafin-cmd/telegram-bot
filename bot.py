@@ -292,7 +292,7 @@ def handle_message(message):
         return
 
     # --- কিবোর্ড বাটন ক্লিক হ্যান্ডেলিং ---
-    if text == '📝 কাজ •':
+        if text == '📝 কাজ •':
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম কাজ >', callback_data='work_insta_step'))
         bot.send_message(message.chat.id, "সিলেক্ট করুন:", reply_markup=markup)
@@ -346,8 +346,11 @@ def handle_message(message):
             bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
             bot.send_message(message.chat.id, "নিচের বাটনে চাপ দিয়ে কোডটি কপি করুন 📊")
             
+            # ট্রিক: চ্যাটবক্সে বটের নাম আসা বন্ধ করার জন্য টেলিগ্রামের নিজস্ব কপি লিংক জেনারেট করা হলো
+            copy_url = f"https://t.me/share/url?url={code}"
+            
             markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton(f"📋 {code}", switch_inline_query_current_chat=code))
+            markup.add(types.InlineKeyboardButton(f"📋 {code}", url=copy_url))
             bot.send_message(message.chat.id, "👇 কোডটি কপি করতে নিচের বাটনে ক্লিক করুন:", reply_markup=markup)
             
             finish_markup = types.InlineKeyboardMarkup()
@@ -359,6 +362,7 @@ def handle_message(message):
             send_user_main_menu(message.chat.id)
             USER_STATES[user_id] = None
         return
+        
 
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
