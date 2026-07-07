@@ -9,6 +9,7 @@ bot = telebot.TeleBot(TOKEN)
 
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
+REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা বোনাস দিতে চান তা এখানে সেট করুন
 
 BALANCE_FILE = "balances.json"
 
@@ -19,7 +20,9 @@ def load_data():
         "pending_counts": {}, 
         "pending_links": {}, 
         "approved_counts": {}, 
-        "rejected_counts": {}
+        "rejected_counts": {},
+        "referred_by": {},    # কে কাকে রেফার করেছে তা ট্র্যাক রাখার জন্য
+        "refer_counts": {}    # কার কয়টি সফল রেফার হয়েছে
     }
     if os.path.exists(BALANCE_FILE):
         with open(BALANCE_FILE, "r", encoding="utf-8") as f:
@@ -72,11 +75,23 @@ def start_cmd(message):
     if user_id in USER_DATA: del USER_DATA[user_id]
     
     str_user_id = str(user_id)
+    
+    # নতুন ইউজারদের ডাটাবেজে ইনিশিয়ালাইজ করা
     if str_user_id not in BOT_DATA["balances"]: BOT_DATA["balances"][str_user_id] = 0.0
     if str_user_id not in BOT_DATA["pending_counts"]: BOT_DATA["pending_counts"][str_user_id] = 0
     if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
     if str_user_id not in BOT_DATA["approved_counts"]: BOT_DATA["approved_counts"][str_user_id] = 0
     if str_user_id not in BOT_DATA["rejected_counts"]: BOT_DATA["rejected_counts"][str_user_id] = 0
+    if str_user_id not in BOT_DATA["refer_counts"]: BOT_DATA["refer_counts"][str_user_id] = 0
+    
+    # রেফারেল লিংক চেক (যেমন: /start 12345678)
+    args = message.text.split()
+    if len(args) > 1:
+        referrer_id = args[1]
+        # যদি ইউজার একদম নতুন হয় এবং নিজেকে নিজে রেফার না করে
+        if str_user_id not in BOT_DATA["referred_by"] and referrer_id != str_user_id and referrer_id in BOT_DATA["balances"]:
+            BOT_DATA["referred_by"][str_user_id] = referrer_id
+            
     save_data(BOT_DATA)
     
     if check_joined(user_id):
@@ -210,8 +225,27 @@ def handle_message(message):
     current_keyboard = get_admin_keyboard() if user_id == ADMIN_ID else get_user_keyboard()
 
     if text == '✅ Joined ✅':
-        if check_joined(user_id): start_cmd(message)
-        else: bot.send_message(message.chat.id, "⚠️ আপনি এখনো জয়েন করেননি!")
+        if check_joined(user_id): 
+            # রেফারেল বোনাস প্রসেস করার লজিক
+            if str_user_id in BOT_DATA["referred_by"]:
+                referrer = BOT_DATA["referred_by"][str_user_id]
+                
+                # রেফারকারীকে বোনাস দেওয়া (যদি সে অলরেডি এই ইউজারের বোনাস না পেয়ে থাকে)
+                if referrer in BOT_DATA["balances"]:
+                    BOT_DATA["balances"][referrer] += REFER_BONUS
+                    BOT_DATA["refer_counts"][referrer] = BOT_DATA["refer_counts"].get(referrer, 0) + 1
+                    
+                    try:
+                        bot.send_message(int(referrer), f"🎁 **সফল রেফারেল বোনাস!**\n\n👤 আপনার লিংক ব্যবহার করে একজন নতুন ইউজার জয়েন করেছে।\n💰 আপনার অ্যাকাউন্টে **{REFER_BONUS:.2f} BDT** যোগ করা হয়েছে।")
+                    except Exception: pass
+                
+                # একবার বোনাস দেওয়া হয়ে গেলে রেফারেল লিস্ট থেকে সরিয়ে দেওয়া যাতে ডাবল না পায়
+                del BOT_DATA["referred_by"][str_user_id]
+                save_data(BOT_DATA)
+
+            start_cmd(message)
+        else: 
+            bot.send_message(message.chat.id, "⚠️ আপনি এখনো জয়েন করেননি!")
         return
 
     if not check_joined(user_id): return
@@ -249,7 +283,6 @@ def handle_message(message):
         current_state = USER_STATES[user_id]
         USER_STATES[user_id] = None
         
-        # ফরম্যাট ঠিক রাখার জন্য টেক্সট মডিফাই করা হচ্ছে
         if current_state == 'WAITING_FOR_CHECK_ID':
             message.text = f"/check {text}"
             check_user_links_cmd(message)
@@ -375,12 +408,26 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"আমাদের অফিশিয়াল চ্যানেলে জয়েন হয়ে কাজ শুরু করে দিন।\nLink: {CHANNEL_USERNAME}", reply_markup=current_keyboard)
     elif '🎧 সাপোর্ট' in text:
         bot.send_message(message.chat.id, "🎧 যেকোনো সমস্যায় সাপোর্ট আইডিতে মেসেজ দিন:\n👉 @nafin_4x_team", reply_markup=current_keyboard)
+        
     elif '🎁 My Referrals' in text:
-        bot.send_message(message.chat.id, "🎁 আপনার রেফারেল সিস্টেমটি খুব শীঘ্রই চালু করা হবে!", reply_markup=current_keyboard)
+        # বটের ইউজারনেম ডাইনামিকলি বের করা
+        bot_info = bot.get_me()
+        refer_link = f"https://t.me/{bot_info.username}?start={user_id}"
+        total_refers = BOT_DATA["refer_counts"].get(str_user_id, 0)
+        
+        msg = (
+            f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👥 মোট সফল রেফার: **{total_refers} জন**\n"
+            f"💰 প্রতি সফল রেফারে পাবেন: **{REFER_BONUS:.2f} BDT**\n\n"
+            f"🔗 **আপনার রেফারেল লিংক:**\n`{refer_link}`\n\n"
+            f"💡 *লিংকটি আপনার বন্ধুদের সাথে শেয়ার করুন। তারা বটে জয়েন করে অফিশিয়াল চ্যানেলে যুক্ত হলেই আপনার ব্যালেন্সে টাকা যোগ হবে!*"
+        )
+        bot.send_message(message.chat.id, msg, parse_mode="Markdown", reply_markup=current_keyboard)
     else:
         bot.send_message(message.chat.id, "আমি বুঝতে পারিনি। অনুগ্রহ করে নিচের বাটনগুলো ব্যবহার করুন।", reply_markup=current_keyboard)
 
 # বট চালু করা
 if __name__ == '__main__':
-    print("Bot is successfully running without any crash on Python 3.13!")
+    print("Bot is successfully running with Referral System!")
     bot.infinity_polling(skip_pending=True)
