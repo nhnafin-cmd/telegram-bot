@@ -53,13 +53,12 @@ def generate_credentials():
     last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
     username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
     
-    # বর্তমান তারিখ (DD) অনুযায়ী পাসওয়ার্ড (যেমন: ৭ তারিখ হলে nagi@07)
     today_date = datetime.datetime.now().strftime("%d")
     password = f"nagi@{today_date}"
     return username, password
 
-# 📱 সাধারণ ইউজারদের জন্য ইনলাইন মেনু
-def get_user_inline_keyboard():
+# 📱 সাধারণ ইউজারদের জন্য ইনলাইন মেনু (এডমিনের জন্য বিশেষ ব্যাক বাটনসহ আপডেট করা হয়েছে)
+def get_user_inline_keyboard(user_id=None):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton('📝 কাজ •', callback_data='menu_work'),
@@ -73,6 +72,11 @@ def get_user_inline_keyboard():
         types.InlineKeyboardButton('🎧 সাপোর্ট', callback_data='menu_support'),
         types.InlineKeyboardButton('🙋‍♂️ আমি নতুন', callback_data='menu_new')
     )
+    
+    # ইউজার যদি স্বয়ং এডমিন হন, তাহলে নিচে ব্যাক বাটনটি দেখাবে
+    if user_id == ADMIN_ID:
+        markup.add(types.InlineKeyboardButton('👑 ব্যাক টু এডমিন প্যানেল', callback_data='go_to_admin_panel'))
+        
     return markup
 
 # 👑 এডমিনদের জন্য বিশেষ ইনলাইন মেনু
@@ -108,7 +112,6 @@ def start_cmd(message):
     
     str_user_id = str(user_id)
     
-    # নতুন ইউজারদের ডাটাবেজে ইনিশিয়ালাইজ করা
     if str_user_id not in BOT_DATA["balances"]: BOT_DATA["balances"][str_user_id] = 0.0
     if str_user_id not in BOT_DATA["pending_counts"]: BOT_DATA["pending_counts"][str_user_id] = 0
     if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
@@ -116,7 +119,6 @@ def start_cmd(message):
     if str_user_id not in BOT_DATA["rejected_counts"]: BOT_DATA["rejected_counts"][str_user_id] = 0
     if str_user_id not in BOT_DATA["refer_counts"]: BOT_DATA["refer_counts"][str_user_id] = 0
     
-    # রেফারেল লিংক চেক
     args = message.text.split()
     if len(args) > 1:
         referrer_id = args[1]
@@ -126,14 +128,13 @@ def start_cmd(message):
     save_data(BOT_DATA)
     
     if check_joined(user_id):
-        # নিচের বড় কিবোর্ড ডিলিট করার জন্য
         remove_markup = types.ReplyKeyboardRemove()
         bot.send_message(message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗", reply_markup=remove_markup)
         
         if user_id == ADMIN_ID:
             bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         else:
-            bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(), parse_mode="Markdown")
+            bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id), parse_mode="Markdown")
     else:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('✅ Joined ✅', callback_data='check_joined_btn'))
@@ -252,7 +253,7 @@ def add_balance(message):
     except Exception:
         bot.send_message(message.chat.id, "❌ ভুল ফরম্যাট! লিখুন: `/add ইউজার_আইডি পরিমাণ`")
 
-# সাধারণ মেসেজ হ্যান্ডেলার (টেক্সট ইনপুট প্রসেসের জন্য)
+# সাধারণ মেসেজ হ্যান্ডেলার
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     user_id = message.from_user.id
@@ -261,7 +262,6 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    # এডমিন টেক্সট ইনপুট প্রসেস
     if user_id == ADMIN_ID and USER_STATES.get(user_id) in ['WAITING_FOR_CHECK_ID', 'WAITING_FOR_APPROVE_DATA', 'WAITING_FOR_REJECT_DATA', 'WAITING_FOR_ADD_DATA']:
         current_state = USER_STATES[user_id]
         USER_STATES[user_id] = None
@@ -282,7 +282,6 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 🔑 2FA Key ইনপুট নেওয়ার অংশ
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -307,11 +306,10 @@ def handle_message(message):
             USER_STATES[user_id] = 'WAITING_FOR_FINISH'
         except Exception:
             bot.send_message(message.chat.id, "❌ **ভুল 2FA Key!** দয়া করে সঠিক কী দিন।")
-            bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard())
+            bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id))
             USER_STATES[user_id] = None
         return
 
-    # [উইথড্র নাম্বার ইনপুট]
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['number'] = text
@@ -323,7 +321,6 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"👇 কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):")
         return
 
-    # [উইথড্র অ্যামাউন্ট ভেরিফিকেশন]
     if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
         try:
             amt = float(text)
@@ -332,7 +329,7 @@ def handle_message(message):
             min_amt = 110.0 if saved_method == "BKASH" else 100.0
             
             if amt < min_amt:
-                bot.send_message(message.chat.id, f"❌ রিকোয়েস্ট ক্যানসেল! {method_name}-এ সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে Crow।")
+                bot.send_message(message.chat.id, f"❌ রিকোয়েস্ট ক্যানসেল! {method_name}-এ সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।")
             else:
                 user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
                 if user_bal < amt:
@@ -348,7 +345,7 @@ def handle_message(message):
         except ValueError:
             bot.send_message(message.chat.id, "❌ ভুল অ্যামাউন্ট! শুধুমাত্র সংখ্যায় টাকার পরিমাণ লিখুন।")
         
-        bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard())
+        bot.send_message(message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id))
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
         return
@@ -359,7 +356,6 @@ def callback_inline(call):
     user_id = call.from_user.id
     str_user_id = str(user_id)
     
-    # জয়েনিং বাটন চেক
     if call.data == 'check_joined_btn':
         if check_joined(user_id):
             if str_user_id in BOT_DATA["referred_by"]:
@@ -375,7 +371,7 @@ def callback_inline(call):
             
             bot.delete_message(call.message.chat.id, call.message.message_id)
             bot.send_message(call.message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗")
-            bot.send_message(call.message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard())
+            bot.send_message(call.message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id))
         else:
             bot.answer_callback_query(call.id, "⚠️ আপনি এখনো জয়েন করেননি!", show_alert=True)
         return
@@ -435,7 +431,7 @@ def callback_inline(call):
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
         
         bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/instagramsellbdbot")
-        bot.send_message(call.message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard())
+        bot.send_message(call.message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id))
         
         if user_id in USER_DATA: del USER_DATA[user_id]
         USER_STATES[user_id] = None
@@ -443,7 +439,7 @@ def callback_inline(call):
 
     elif call.data == 'menu_balance':
         bal = BOT_DATA["balances"].get(str_user_id, 0.0)
-        msg = f"💰 **আপনার ব্যালেন্স ও কাজের রিপোর্ট**\n━━━━━━━━━━━━━━━━━━\n🔥 মূল ব্যালেন্স: {bal:.2f} BDT\n📥 পেন্ডিং কাজ: {BOT_DATA['pending_counts'].get(str_user_id, 0)}টি\n✅ এপ্রুভড কাজ: {BOT_DATA['approved_counts'].get(str_user_id, 0)}টি\n❌ রিজেক্টেড কাজ: {BOT_DATA['rejected_counts'].get(str_user_id, 0)}টি"
+        msg = f"💰 **আপনার ব্যালেন্স ও কাজের রিপোর্ট**\n━━━━━━━━━━━━━━━\n🔥 মূল ব্যালেন্স: {bal:.2f} BDT\n📥 পেন্ডিং কাজ: {BOT_DATA['pending_counts'].get(str_user_id, 0)}টি\n✅ এপ্রুভড কাজ: {BOT_DATA['approved_counts'].get(str_user_id, 0)}টি\n❌ রিজেক্টেড কাজ: {BOT_DATA['rejected_counts'].get(str_user_id, 0)}টি"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('⬅️ মেইন মেনু', callback_data='go_to_main_menu'))
         bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
@@ -480,17 +476,25 @@ def callback_inline(call):
         markup.add(types.InlineKeyboardButton('⬅️ মেইন মেনু', callback_data='go_to_main_menu'))
         bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=markup)
         
+    # 🎯 ফিক্সড: এডমিন "⚙️ ইউজার মেনু"-তে ক্লিক করলে সরাসরি সাধারণ ইউজারদের মেইন মেনু দেখতে পাবেন
     elif call.data == 'go_to_main_menu':
         USER_STATES[user_id] = None
+        try:
+            bot.edit_message_text("🧭 **মেইন মেনু:**", call.message.chat.id, call.message.message_id, reply_markup=get_user_inline_keyboard(user_id), parse_mode="Markdown")
+        except Exception:
+            bot.send_message(call.message.chat.id, "🧭 **মেইন মেনু:**", reply_markup=get_user_inline_keyboard(user_id), parse_mode="Markdown")
+
+    # 🎯 নতুন বাটন অ্যাকশন: এডমিন মেইন মেনু থেকে আবার নিজের এডমিন প্যানেলে ব্যাক করতে পারবেন
+    elif call.data == 'go_to_admin_panel':
         if user_id == ADMIN_ID:
-            bot.edit_message_text("👑 **এডমিন কন্ট্রোল প্যানেল:**", call.message.chat.id, call.message.message_id, reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
-        else:
-            bot.edit_message_text("🧭 **মেইন মেনু:**", call.message.chat.id, call.message.message_id, reply_markup=get_user_inline_keyboard(), parse_mode="Markdown")
+            try:
+                bot.edit_message_text("👑 **এডমিন কন্ট্রোল প্যানেল:**", call.message.chat.id, call.message.message_id, reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
+            except Exception:
+                bot.send_message(call.message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
 
     # --- এডমিন মেনু অ্যাকশন ---
     elif call.data == 'admin_pending':
         bot.answer_callback_query(call.id)
-        # টেক্সট হ্যান্ডলারের ফাংশন কল করা হলো
         class DummyMessage:
             def __init__(self, uid, cid):
                 self.from_user = type('User', (object,), {'id': uid})()
@@ -519,5 +523,14 @@ def callback_inline(call):
         bot.answer_callback_query(call.id)
 
 if __name__ == '__main__':
-    print("Bot is running perfectly with Inline Menu System...")
+    try:
+        bot.set_my_commands([
+            telebot.types.BotCommand("start", "🤖 বট চালু করুন / মেইন মেনু"),
+            telebot.types.BotCommand("pending", "📋 পেন্ডিং কাজ দেখুন (এডমিন)"),
+            telebot.types.BotCommand("check", "🔎 ইউজারের লিংক চেক করুন (এডমিন)")
+        ])
+    except Exception as e:
+        print(f"Error setting commands: {e}")
+
+    print("Bot is running perfectly with Dynamic Menu system...")
     bot.infinity_polling(skip_pending=True)
