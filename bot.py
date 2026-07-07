@@ -292,7 +292,7 @@ def handle_message(message):
         return
 
     # --- কিবোর্ড বাটন ক্লিক হ্যান্ডেলিং ---
-        if text == '📝 কাজ •':
+     if text == '📝 কাজ •':
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম কাজ >', callback_data='work_insta_step'))
         bot.send_message(message.chat.id, "সিলেক্ট করুন:", reply_markup=markup)
