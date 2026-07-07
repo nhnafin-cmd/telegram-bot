@@ -365,4 +365,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         USER_STATES[user_id] = 'WAITING_FOR_NAGAD_NUMBER'
         await update.message.reply_text("👇 আপনার নগদ নাম্বারটি লিখুন:", reply_markup=ReplyKeyboardMarkup([['⬅️ ফিরে যান']], resize_keyboard=True))
     elif '💵 ব্যালেন্স' in text:
-        bal = BOT_DATA["balances"].get
+        bal = BOT_DATA["balances"].get(str_user_id, 0.0)
+        pending_work = BOT_DATA["pending_counts"].get(str_user_id, 0)
+        approved_work = BOT_DATA["approved_counts"].get(str_user_id, 0)
+        rejected_work = BOT_DATA["rejected_counts"].get(str_user_id, 0)
+        
+        msg = (
+            f"💰 **আপনার ব্যালেন্স ও কাজের রিপোর্ট**\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🔥 মূল ব্যালেন্স: {bal:.2f} BDT\n\n"
+            f"📥 পেন্ডিং কাজ: {pending_work}টি\n"
+            f"✅ এপ্রুভড কাজ: {approved_work}টি\n"
+            f"❌ রিজেক্টেড কাজ: {rejected_work}টি"
+        )
+        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=current_keyboard)
+    elif '🙋‍♂️ আমি নতুন' in text:
+        await update.message.reply_text(f"আমাদের অফিশিয়াল চ্যানেলে জয়েন হয়ে কাজ শুরু করে দিন।\nLink: {CHANNEL_USERNAME}", reply_markup=current_keyboard)
+    elif '🎧 সাপোর্ট' in text:
+        await update.message.reply_text("🎧 যেকোনো সমস্যায় সাপোর্ট আইডিতে মেসেজ দিন:\n👉 @nafin_4x_team", reply_markup=current_keyboard)
+    elif '🎁 My Referrals' in text:
+        await update.message.reply_text("🎁 আপনার রেফারেল সিস্টেমটি খুব শীঘ্রই চালু করা হবে!", reply_markup=current_keyboard)
+    elif '⬅️ ফিরে যান' in text: 
+        await start(update, context)
+    else: 
+        await update.message.reply_text("আমি বুঝতে পারিনি। অনুগ্রহ করে নিচের বাটনগুলো ব্যবহার করুন।", reply_markup=current_keyboard)
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("pending", view_pending))
+    app.add_handler(CommandHandler("check", check_user_links))
+    app.add_handler(CommandHandler("approve", approve_work))
+    app.add_handler(CommandHandler("reject", reject_work))
+    app.add_handler(CommandHandler("add", add_balance))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling()
+
+if __name__ == '__main__': main()
