@@ -331,7 +331,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক কপি বাটন সিস্টেম
+        # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কপি সিস্টেম
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -344,13 +344,11 @@ def handle_message(message):
             USER_DATA[user_id]['2fa_key'] = user_input
             
             bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
-            bot.send_message(message.chat.id, "নিচের বাটনে চাপ দিয়ে কোডটি কপি করুন 📊")
+            bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
             
-            copy_url = f"https://t.me/share/url?url={code}"
-            
-            markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton(f"📋 {code}", url=copy_url))
-            bot.send_message(message.chat.id, "👇 কোডটি কপি করতে নিচের বাটনে ক্লিক করুন:", reply_markup=markup)
+            # ইনলাইন বাটন বাদ দিয়ে HTML parse_mode ব্যবহার করে ১-ক্লিকে কপি সিস্টেম
+            # <code> ট্যাগের কারণে কোডটি আলাদা বক্সে দেখাবে এবং টাচ করলেই কপি হয়ে যাবে
+            bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
             
             finish_markup = types.InlineKeyboardMarkup()
             finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট খোলা শেষ', callback_data='work_finish_done'))
@@ -361,7 +359,7 @@ def handle_message(message):
             send_user_main_menu(message.chat.id)
             USER_STATES[user_id] = None
         return
-
+        
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['number'] = text
