@@ -12,6 +12,7 @@ bot = telebot.TeleBot(TOKEN)
 
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
+WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
 REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা বোনাস দিতে চান তা এখানে সেট করুন
 
 BALANCE_FILE = "balances.json"
@@ -331,7 +332,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-        # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কপি সিস্টেম
+    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কпи সিস্টেম
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -346,7 +347,6 @@ def handle_message(message):
             bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
             bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
             
-            # ইনলাইন বাটন বাদ দিয়ে HTML parse_mode ব্যবহার করে ১-ক্লিকে কপি সিস্টেম
             # <code> ট্যাগের কারণে কোডটি আলাদা বক্সে দেখাবে এবং টাচ করলেই কপি হয়ে যাবে
             bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
             
@@ -360,19 +360,6 @@ def handle_message(message):
             USER_STATES[user_id] = None
         return
         
-    if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
-        if user_id not in USER_DATA: USER_DATA[user_id] = {}
-        USER_DATA[user_id]['number'] = text
-        method_type = "BKASH" if USER_STATES[user_id] == 'WAITING_FOR_BKASH_NUMBER' else "NAGAD"
-        USER_DATA[user_id]['method'] = method_type
-        
-        USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
-        min_limit = "💡১১০৳" if method_type == "BKASH" else "১০০৳"
-        bot.send_message(message.chat.id, f"👇 কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):")
-        return
-        
-        
-
     if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['number'] = text
@@ -402,8 +389,28 @@ def handle_message(message):
                     save_data(BOT_DATA)
                     num = USER_DATA.get(user_id, {}).get('number', 'N/A')
                     
+                    # আপনার নির্দিষ্ট করা গ্রুপে উইথড্র রিকোয়েস্টের নোটিফিকেশন পাঠানো
+                    withdraw_group_msg = (
+                        f"📥 **নতুন উইথড্র রিকোয়েস্ট**\n"
+                        f"━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 নাম: {message.from_user.first_name}\n"
+                        f"🆔 ইউজার আইডি: `{user_id}`\n"
+                        f"💳 মাধ্যম: **{method_name}**\n"
+                        f"📱 নাম্বার: `{num}`\n"
+                        f"💰 পরিমাণ: **{amt:.2f} BDT**\n"
+                        f"━━━━━━━━━━━━━━━━━━━"
+                    )
+                    
+                    # গ্রুপে রিকোয়েস্ট মেসেজ সেন্ড
+                    try:
+                        bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="Markdown")
+                    except Exception as e:
+                        print(f"Error sending to channel/group: {e}")
+                        
+                    # পিএম-এ এডমিন নোটিফিকেশন (আগের মতো)
                     admin_msg = f"💰 **উইথড্র রিকোয়েস্ট!**\n\n👤 নাম: {message.from_user.first_name}\n🆔 আইডি: `{user_id}`\n💳 মাধ্যম: {method_name}\n📱 নাম্বার: `{num}`\n💵 পরিমাণ: **{amt:.2f} BDT**"
                     bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
+                    
                     bot.send_message(message.chat.id, f"✅ আপনার উইথড্র রিকোয়েস্টটি সফল হয়েছে!\n📉 কেটে নেওয়া হয়েছে: {amt:.2f} BDT\n🔥 বর্তমান মূল ব্যালেন্স: {BOT_DATA['balances'][str_user_id]:.2f} BDT")
         except ValueError:
             bot.send_message(message.chat.id, "❌ ভুল অ্যামাউন্ট! শুধুমাত্র সংখ্যায় টাকার পরিমাণ লিখুন।")
