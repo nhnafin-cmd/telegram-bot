@@ -465,7 +465,7 @@ def callback_inline(call):
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
         
-        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/instagramsellbdbot")
+        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://https://t.me/OfficialInstagramSellBD")
         send_user_main_menu(call.message.chat.id)
         
         if user_id in USER_DATA: del USER_DATA[user_id]
