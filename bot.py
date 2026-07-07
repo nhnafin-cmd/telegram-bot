@@ -361,57 +361,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if missing_padding:
             submitted_key += '=' * (8 - missing_padding)
         
-                        # 🛡️ গুগল অথেনটিকেটর স্ট্যান্ডার্ড অনুযায়ী পিওর ২এফএ জেনারেটর
+                                # 🛡️ পিওর রিয়েল ওটিপি জেনারেটর (কোনো ফেক বা ডামি কোড ছাড়া)
         import pyotp
         import time
 
         try:
-            # ১. কি-এর সব স্পেস কেটে সম্পূর্ণ আপারকেস করা হচ্ছে
+            # ১. কি-এর সব স্পেস কেটে পরিষ্কার করা হচ্ছে
             clean_key = submitted_key.replace(" ", "").strip().upper()
             
-            # ২. বেস-৩২ ফরম্যাটের প্যাডিং ফিক্স (rstrip করে নতুন করে ৮-এর গুণিতক করা)
+            # ২. বেস-৩২ ফরম্যাটের প্যাডিং ফিক্স 
             clean_key = clean_key.rstrip('=')
             missing_padding = len(clean_key) % 8
             if missing_padding:
                 clean_key += '=' * (8 - missing_padding)
             
-            # ৩. গুগল অ্যাপ অ্যালগরিদমে কি-টি পাস করা হচ্ছে
+            # ৩. রিয়েল ওটিপি জেনারেশন
             totp = pyotp.TOTP(clean_key)
             real_otp = totp.now()
             
-            # ৪. যদি কারেন্ট টাইম ফেইল করে, তবে ব্যাকআপ হিসেবে কারেন্ট টাইমস্ট্যাম্প পুশ করা
-            if not real_otp or len(real_otp) != 6:
+            # ৪. সার্ভার টাইম সিঙ্কের জন্য ব্যাকআপ চেক
+            if not real_otp or len(real_otp) != 6 or not real_otp.isdigit():
                 real_otp = totp.at(int(time.time()))
+                
+        except Exception:
+            # কি-তে ভুল থাকলে বট ডামি নাম্বার না দিয়ে ইউজারকে সরাসরি এরর মেসেজ দেবে
+            real_otp = "ERROR"
 
-        except Exception as e:
-            # কোনো কারণে লাইব্রেরি ক্র্যাশ করলে ডামি টেক্সট না দেখিয়ে ইউজারকে সচেতন করার মেসেজ
-            real_otp = "INVALID_KEY_OR_TIME_ERROR"
-
-        # 📊 ডাটাবেজে কাজ ও পেন্ডিং কাউন্ট সেভ করার লজিক
-        if "pending_links" not in BOT_DATA: 
-            BOT_DATA["pending_links"] = {}
-        if str_user_id not in BOT_DATA["pending_links"]: 
-            BOT_DATA["pending_links"][str_user_id] = []
+        # 📊 ডাটাবেজে কাজ সেভ করার লজিক
+        if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
+        if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
         saved_task_format = f"👤 Username: {submitted_user} | 🔑 2FA Key: {submitted_key}"
         BOT_DATA["pending_links"][str_user_id].append(saved_task_format)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
 
-        # 💬 ইউজারকে মেসেজ ও জেনারেট হওয়া ওটিপি কোড পাঠানোর লজিক
-        if real_otp == "INVALID_KEY_OR_TIME_ERROR":
-            response_text = (
-                "⚠️ **ওটিপি জেনারেট করা সম্ভব হয়নি!**\n\n"
-                "আপনার দেওয়া ২এফএ কি (Key) টি সঠিক নয় অথবা সার্ভার টাইমে সমস্যা আছে। "
-                "অনুগ্রহ করে সঠিক কি-টি পুনরায় কপি করে পাঠান।"
+        # 💬 ইউজারকে মেসেজ ও বাটন ডিজাইন করে পাঠানো
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        if real_otp == "ERROR" or not real_otp:
+            await update.message.reply_text(
+                "⚠️ **ভুল ২এফএ কি (2FA Key)!**\n\n"
+                "আপনার দেওয়া কি-টি সঠিক নয়। দয়া করে ইনস্টাগ্রাম অ্যাপ থেকে আসল কি-টি কপি করে পুনরায় পাঠান।"
             )
         else:
             response_text = (
-                f"🔒 **আপনার ইনস্টাগ্রাম ২এফএ কোড:** `{real_otp}`\n\n"
-                f"⏱️ কোডটি মাত্র ৩০ সেকেন্ড কার্যকর থাকবে। নিচের কোডটির ওপর চাপ দিয়ে কপি করুন।"
+                "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:\n\n"
+                "নিচের বাটনে চাপ দিয়ে কোডটি কপি করুন ⤵️"
             )
-            
-        await update.message.reply_text(response_text, parse_mode="Markdown")
+            # 📋 ওই বটের মতো হুবহু কপি বাটন ডিজাইন
+            keyboard = [
+                [InlineKeyboardButton(f"📋 🗳️ {real_otp}", callback_data=f"copy_otp_{real_otp}")],
+                [InlineKeyboardButton("✅ অ্যাকাউন্ট খোলা শেষ", callback_data="finish_insta_task")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(response_text, reply_markup=reply_markup)
+                
         
         
                          
