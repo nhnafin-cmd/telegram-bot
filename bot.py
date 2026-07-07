@@ -1,6 +1,9 @@
 import os
 import json
 import pyotp
+import random
+import string
+import datetime
 import telebot
 from telebot import types
 
@@ -44,6 +47,17 @@ BOT_DATA = load_data()
 USER_STATES = {}
 USER_DATA = {}
 
+# 📆 ডাইনামিক ইউজারনেম এবং প্রতিদিনের তারিখ অনুযায়ী সঠিক ৪ অক্ষরের পাসওয়ার্ড জেনারেটর (যেমন: nagi@07)
+def generate_credentials():
+    first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
+    last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
+    username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
+    
+    # বর্তমান তারিখ (DD) অনুযায়ী পাসওয়ার্ড (যেমন: ৭ তারিখ হলে nagi@07)
+    today_date = datetime.datetime.now().strftime("%d")
+    password = f"nagi@{today_date}"
+    return username, password
+
 # কিবোর্ড লেআউট তৈরি
 def get_user_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -59,6 +73,7 @@ def get_admin_keyboard():
     markup.row('✅ এপ্রুভ কাজ', '❌ রিজেক্ট কাজ', '🙋‍♂️ আমি নতুন')
     markup.row('➕ ব্যালেন্স যোগ', '🎧 সাপোর্ট', '⬅️ ফিরে যান')
     return markup
+    
 
 def check_joined(user_id):
     try:
