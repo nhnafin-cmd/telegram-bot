@@ -402,7 +402,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("আমি বুঝতে পারিনি। অনুগ্রহ করে নিচের বাটনগুলো ব্যবহার করুন।", reply_markup=current_keyboard)
 
 def main():
-    # রেলওয়ের এনভায়রনমেন্ট এবং পাইথন ৩.১৩ এর বাগ ফিক্স
+    # রেলওয়ে এবং পাইথন ৩.১৩-এর ইন্টারনাল 'Updater' ক্র্যাশ বাগ ফিক্স
     app = Application.builder().token(TOKEN).build()
     
     # হ্যান্ডলার যুক্ত করা
@@ -414,8 +414,21 @@ def main():
     app.add_handler(CommandHandler("add", add_balance))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # সার্ভার ক্র্যাশ রোধে পোলিং স্টার্ট
-    app.run_polling(drop_pending_updates=True)
+    # ৩.১৩ ক্র্যাশ এড়াতে সরাসরি অ্যাপ্লিকেশন ইনিশিয়ালাইজ ও স্টার্ট করা হলো
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.updater.start_polling(drop_pending_updates=True))
+    loop.run_until_complete(app.start())
+    
+    print("Bot is running perfectly...")
+    loop.run_forever()
 
 if __name__ == '__main__': 
     main()
+    
