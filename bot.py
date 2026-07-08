@@ -15,12 +15,13 @@ bot = telebot.TeleBot(TOKEN)
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
-REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা বোনাস অটো সেট করা হলো
+REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ইনস্ট্যান্ট বোনাস
+REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজের কমিশন
 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট এবং পাসওয়ার্ড সহ ডেটা অ্যাড করার সঠিক ফাংশন
+# 📊 গুগল শিট কানেক্ট এবং পাসওয়ার্ড সহ ডেটা অ্যাড করার ফাংশন
 def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -38,21 +39,19 @@ def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram
         
         match_count = 0
         for row in all_records:
-            if len(row) >= 4:  # এখানে চেক ইনডেক্স ঠিক করা হয়েছে
-                if str(row[4]).strip() == str(telegram_id).strip(): # আইডি এখন ৫ম কলামে যাবে
+            if len(row) >= 5:
+                if str(row[4]).strip() == str(telegram_id).strip():
                     match_count += 1
         
         work_count = match_count + 1 
 
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 🔔 এখন সিরিয়াল অনুযায়ী সব ডেটা শিটে জমা হবে:
         # A: সময় | B: ইউজারনেম | C: পাসওয়ার্ড | D: ২এফএ কী | E: টেলিগ্রাম আইডি | F: টেলিগ্রাম নাম | G: কাজের সংখ্যা
         sheet.append_row([now_time, username, password, two_fa_key, str(telegram_id), telegram_name, work_count])
         print("Data successfully added to Google Sheet with Password!")
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
-        
 
 # ডাটা লোড এবং সেভ করার সিস্টেম
 def load_data():
@@ -62,7 +61,7 @@ def load_data():
         "pending_links": {}, 
         "approved_counts": {}, 
         "rejected_counts": {},
-        "referred_by": {},    
+        "referred_by": {},    # কে কার রেফারে জয়েন করেছে তা ট্র্যাক করার জন্য স্থায়ী ডাটাবেজ
         "refer_counts": {}    
     }
     if os.path.exists(BALANCE_FILE):
@@ -114,7 +113,7 @@ def send_user_main_menu(chat_id, text_msg="🧭 **মেইন মেনু:**")
     if chat_id == ADMIN_ID:
         markup.add(types.KeyboardButton('👑 এডমিন প্যানেল'))
         
-    bot.send_message(chat_id, text_msg, reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(chat_id, text_msg, reply_markup=markup, reply_to_message_id=None, parse_mode="Markdown")
 
 # 👑 এডমিনদের জন্য বিশেষ ইনলাইন মেনু
 def get_admin_inline_keyboard():
@@ -159,6 +158,7 @@ def start_cmd(message):
     args = message.text.split()
     if len(args) > 1:
         referrer_id = args[1]
+        # নিজে নিজেকে রেফার করা প্রতিরোধ এবং স্থায়ী ট্র্যাকিং নিশ্চিত করা
         if str_user_id not in BOT_DATA["referred_by"] and referrer_id != str_user_id and referrer_id in BOT_DATA["balances"]:
             BOT_DATA["referred_by"][str_user_id] = referrer_id
             
@@ -189,7 +189,7 @@ def view_pending(message):
     msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা] [কয়টি]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কয়টি] [কারণ]`"
     bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক (১ ক্লিকে শুধুমাত্র ইউজারনেম কপি করার আপডেট ফিচার)
+# 🔎 এডমিন কমান্ড ৪: লিংক চেক
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -217,7 +217,6 @@ def check_user_links_cmd(message):
         except Exception:
             username_list.append(link)
             
-    # সিরিয়াল নাম্বার ছাড়া শুধুমাত্র ইউজারনেমগুলো পরপর সাজানো হচ্ছে
     copy_text = ""
     for uname in username_list:
         copy_text += f"{uname}\n"
@@ -227,9 +226,8 @@ def check_user_links_cmd(message):
     msg += f"<code>{copy_text.strip()}</code>"
             
     bot.send_message(message.chat.id, msg, parse_mode="HTML")
-    
 
-# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা
+# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা (১০% অটোমেটিক রেফার কমিশন সহ আপডেট লজিক)
 @bot.message_handler(commands=['approve'])
 def approve_work(message):
     if message.from_user.id != ADMIN_ID: return
@@ -239,27 +237,51 @@ def approve_work(message):
         amount = float(args[1])
         count_to_approve = int(args[2]) if len(args) > 2 else None
         
-        if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
-            total_pending = BOT_DATA["pending_counts"][target_id]
+        str_target_id = str(target_id)
+        
+        if str_target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][str_target_id] > 0:
+            total_pending = BOT_DATA["pending_counts"][str_target_id]
             if count_to_approve is None or count_to_approve >= total_pending:
                 count_to_approve = total_pending
             
-            if str(target_id) in BOT_DATA["pending_links"]:
-                BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_approve:]
+            if str_target_id in BOT_DATA["pending_links"]:
+                BOT_DATA["pending_links"][str_target_id] = BOT_DATA["pending_links"][str_target_id][count_to_approve:]
             
-            BOT_DATA["pending_counts"][target_id] -= count_to_approve
-            BOT_DATA["balances"][target_id] = BOT_DATA["balances"].get(target_id, 0.0) + amount
-            BOT_DATA["approved_counts"][target_id] = BOT_DATA["approved_counts"].get(target_id, 0) + count_to_approve
+            BOT_DATA["pending_counts"][str_target_id] -= count_to_approve
+            BOT_DATA["balances"][str_target_id] = BOT_DATA["balances"].get(str_target_id, 0.0) + amount
+            BOT_DATA["approved_counts"][str_target_id] = BOT_DATA["approved_counts"].get(str_target_id, 0) + count_to_approve
+            
+            # 🔔 নতুন আপডেট: ১০% রেফারাল কমিশন ক্যালকুলেশন ও ইনস্ট্যান্ট মেসেজ সিস্টেম
+            # 'referred_by' ডাটাবেজ থেকে চেক করা হচ্ছে এই ইউজারকে কেউ রেফার করেছিল কিনা
+            referrer_id = BOT_DATA.get("referred_by", {}).get(str_target_id)
+            commission_added = 0.0
+            
+            if referrer_id and str(referrer_id) in BOT_DATA["balances"]:
+                # মোট মূল্যের ১০% কমিশন হিসাব
+                commission_added = amount * REFER_COMMISSION_PERCENT
+                BOT_DATA["balances"][str(referrer_id)] += commission_added
+                
+                try:
+                    # আপনার রিকোয়েস্ট অনুযায়ী কাস্টম নোটিফিকেশন মেসেজ পাঠানো হচ্ছে
+                    ref_msg = (
+                        f"🎉 **রেফারেল কমিশন নোটিফিকেশন!**\n\n"
+                        f"🤝 আপনার রেফার করা বন্ধুর **[{count_to_approve}]** টি কাজ এপ্রুভ হয়েছে।\n"
+                        f"💰 সেখান থেকে আপনি **১০%** লাইফটাইম কমিশন হিসেবে **{commission_added:.2f} BDT** আপনার মূল ব্যালেন্সে পেয়ে গেছেন!"
+                    )
+                    bot.send_message(int(referrer_id), ref_msg)
+                except Exception:
+                    pass
+            
             save_data(BOT_DATA)
             
-            bot.send_message(message.chat.id, f"✅ ইউজার `{target_id}` এর {count_to_approve}টি কাজ এপ্রুভ করা হয়েছে এবং {amount}৳ মূল ব্যালেন্সে যোগ হয়েছে।\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি", parse_mode="Markdown")
+            bot.send_message(message.chat.id, f"✅ ইউজার `{target_id}` এর {count_to_approve}টি কাজ এপ্রুভ করা হয়েছে এবং {amount}৳ মূল ব্যালেন্সে যোগ হয়েছে।\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি", parse_mode="Markdown")
             try:
-                bot.send_message(int(target_id), f"🎉 আপনার জমা দেওয়া {count_to_approve}টি কাজ এডমিন চেক করে এপ্রুভ করেছেন!\n📥 মেইন ব্যালেন্সে {amount} BDT যোগ করা হয়েছে।\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি")
+                bot.send_message(int(target_id), f"🎉 আপনার জমা দেওয়া {count_to_approve}টি কাজ এডমিন চেক করে এপ্রুভ করেছেন!\n📥 মেইন ব্যালেন্সে {amount} BDT যোগ করা হয়েছে।\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][str_target_id]:.2f} BDT\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি")
             except Exception: pass
         else:
             bot.send_message(message.chat.id, "❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
-    except Exception:
-        bot.send_message(message.chat.id, "❌ ভুল ফরম্যাট! লিখুন: `/approve ইউজার_আইডি টাকার_পরিমাণ কয়টি_কাজ`")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ ভুল ফরম্যাট বা ত্রুটি! লিখুন: `/approve ইউজার_আইডি টাকার_পরিমাণ কয়টি_কাজ`")
 
 # ❌ এডমিন কমান্ড ৫: কাজ রিজেক্ট করা
 @bot.message_handler(commands=['reject'])
@@ -271,20 +293,22 @@ def reject_work(message):
         count_to_reject = int(args[1])
         reason = " ".join(args[2:]) if len(args) > 2 else "নিয়ম মানা হয়নি"
         
-        if target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][target_id] > 0:
-            total_pending = BOT_DATA["pending_counts"][target_id]
+        str_target_id = str(target_id)
+        
+        if str_target_id in BOT_DATA["pending_counts"] and BOT_DATA["pending_counts"][str_target_id] > 0:
+            total_pending = BOT_DATA["pending_counts"][str_target_id]
             if count_to_reject >= total_pending: count_to_reject = total_pending
             
-            if str(target_id) in BOT_DATA["pending_links"]:
-                BOT_DATA["pending_links"][str(target_id)] = BOT_DATA["pending_links"][str(target_id)][count_to_reject:]
+            if str_target_id in BOT_DATA["pending_links"]:
+                BOT_DATA["pending_links"][str_target_id] = BOT_DATA["pending_links"][str_target_id][count_to_reject:]
             
-            BOT_DATA["pending_counts"][target_id] -= count_to_reject
-            BOT_DATA["rejected_counts"][target_id] = BOT_DATA["rejected_counts"].get(target_id, 0) + count_to_reject
+            BOT_DATA["pending_counts"][str_target_id] -= count_to_reject
+            BOT_DATA["rejected_counts"][str_target_id] = BOT_DATA["rejected_counts"].get(str_target_id, 0) + count_to_reject
             save_data(BOT_DATA)
             
-            bot.send_message(message.chat.id, f"❌ ইউজার `{target_id}` এর {count_to_reject}টি কাজ রিজেক্ট করা হয়েছে।\n💬 কারণ: {reason}\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি", parse_mode="Markdown")
+            bot.send_message(message.chat.id, f"❌ ইউজার `{target_id}` এর {count_to_reject}টি কাজ রিজেক্ট করা হয়েছে।\n💬 কারণ: {reason}\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি", parse_mode="Markdown")
             try:
-                bot.send_message(int(target_id), f"⚠️ আপনার জমা দেওয়া {count_to_reject}টি কাজ এডমিন রিজেক্ট করেছেন!\n💬 কারণ: {reason}\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][target_id]}টি")
+                bot.send_message(int(target_id), f"⚠️ আপনার জমা দেওয়া {count_to_reject}টি কাজ এডমিন রিজেক্ট করেছেন!\n💬 কারণ: {reason}\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি")
             except Exception: pass
         else:
             bot.send_message(message.chat.id, "❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
@@ -299,11 +323,12 @@ def add_balance(message):
         args = message.text.split()[1:]
         target_id = args[0]
         amount = float(args[1])
-        BOT_DATA["balances"][target_id] = BOT_DATA["balances"].get(target_id, 0.0) + amount
+        str_target_id = str(target_id)
+        BOT_DATA["balances"][str_target_id] = BOT_DATA["balances"].get(str_target_id, 0.0) + amount
         save_data(BOT_DATA)
-        bot.send_message(message.chat.id, f"✅ সফলভাবে যোগ হয়েছে: {amount}৳\n👤 ইউজার আইডি: {target_id}\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]}৳")
+        bot.send_message(message.chat.id, f"✅ সফলভাবে যোগ হয়েছে: {amount}৳\n👤 ইউজার আইডি: {target_id}\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][str_target_id]}৳")
         try:
-            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাউন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
+            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাউন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][str_target_id]:.2f} BDT")
         except Exception: pass
     except Exception:
         bot.send_message(message.chat.id, "❌ ভুল ফরম্যাট! লিখুন: `/add ইউজার_আইডি পরিমাণ`")
@@ -317,7 +342,6 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    # 🛑 টেক্সট কিবোর্ড থেকে বাতিল করলে
     if text in ['❌ বাতিল করুন', '🔙 ফিরে যান']:
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
@@ -377,7 +401,7 @@ def handle_message(message):
     elif text == '🎁 My Referrals':
         bot_info = bot.get_me()
         refer_link = f"https://t.me/{bot_info.username}?start={user_id}"
-        msg = f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n━━━━━━━━━━━━━━━━━━━━━\n👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n💰 বোনাস: **{BOT_DATA['refer_counts'].get(str_user_id, 0)*REFER_BONUS:.2f} BDT**\n\n🔗 **লিংক:**\n`{refer_link}`"
+        msg = f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n━━━━━━━━━━━━━━━━━━━━━\n👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n\n🔗 **লিংক:**\n`{refer_link}`"
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         return
 
@@ -407,7 +431,6 @@ def handle_message(message):
             if user_id not in USER_DATA: USER_DATA[user_id] = {}
             USER_DATA[user_id]['2fa_key'] = user_input
             
-            # মেসেজ আইডিগুলো ট্র্যাকিং এর জন্য সেভ রাখা হচ্ছে যাতে পরে ডিলিট করা যায়
             msg1 = bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
             msg2 = bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
             msg3 = bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
@@ -491,19 +514,18 @@ def callback_inline(call):
     user_id = call.from_user.id
     str_user_id = str(user_id)
     
-    # 2. রেফার করলে অটোমেটিক ২ টাকা ব্যালেন্সে যোগ এবং ইনস্ট্যান্ট মেসেজ নোটিফিকেশন সিস্টেম
     if call.data == 'check_joined_btn':
         if check_joined(user_id):
+            # ২ টাকা ইনস্ট্যান্ট বোনাস সিস্টেম
             if str_user_id in BOT_DATA["referred_by"]:
                 referrer = BOT_DATA["referred_by"][str_user_id]
                 if referrer in BOT_DATA["balances"]:
                     BOT_DATA["balances"][referrer] += REFER_BONUS
                     BOT_DATA["refer_counts"][referrer] = BOT_DATA["refer_counts"].get(referrer, 0) + 1
                     try:
-                        # আপনার রিকোয়েস্ট অনুযায়ী কাস্টম ডাইনামিক মেসেজ পাঠানো হচ্ছে
                         bot.send_message(int(referrer), f"🎁 **আপনার রেফারেল লিংক থেকে একজন অ্যাকাউন্ট করেছে!**\n\n💰 আপনার মূল ব্যালেন্সে **{REFER_BONUS:.2f} Tk** সফলভাবে যোগ করে দেওয়া হয়েছে।")
                     except Exception: pass
-                del BOT_DATA["referred_by"][str_user_id]
+                # এখন কিন্তু referred_by মুছবো না! কারণ পরবর্তীতে তার কাজ ট্র্যাক করে ১০% কমিশন দিতে হবে
                 save_data(BOT_DATA)
             
             try:
@@ -557,13 +579,11 @@ def callback_inline(call):
             send_user_main_menu(call.message.chat.id)
             return
 
-        # 1. কাজ সফলভাবে জমা দেওয়ার পর ওপরের মেসেজগুলো স্বয়ংক্রিয়ভাবে মুছে দেওয়ার লজিক
         if user_id in USER_DATA and 'messages_to_delete' in USER_DATA[user_id]:
             for msg_id in USER_DATA[user_id]['messages_to_delete']:
                 try:
                     bot.delete_message(call.message.chat.id, msg_id)
-                except Exception:
-                    pass
+                except Exception: pass
 
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
@@ -597,12 +617,10 @@ def callback_inline(call):
     elif call.data == 'go_to_main_menu':
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
-        
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
             bot.delete_message(call.message.chat.id, call.message.message_id - 1)
-        except Exception:
-            pass
+        except Exception: pass
             
         bot.send_message(call.message.chat.id, "❌ কাজ সফলভাবে বাতিল করা হয়েছে।")
         send_user_main_menu(call.message.chat.id, "🧭 **মেইন মেনু:**")
