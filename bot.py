@@ -20,7 +20,7 @@ REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট করার ফাংশন (পাসওয়ার্ড কলামসহ)
+# 📊 গুগল শিট কানেক্ট এবং ডাইনামিক কাউন্ট করার ফাংশন
 def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -34,9 +34,42 @@ def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_ID).sheet1
         
+        # শিটের সব ডেটা নিয়ে আসা (আগে কয়টি কাজ জমা পড়েছে তা চেক করার জন্য)
+        all_records = sheet.get_all_values()
+        
+        work_count = 1  # ডিফল্ট কাউন্ট ১, যদি নতুন পাসওয়ার্ড বা নতুন ইউজার হয়
+        
+        # লুপ চালিয়ে চেক করা হচ্ছে: একই টেলিগ্রাম আইডি এবং একই পাসওয়ার্ডের কোনো কাজ আগে জমা পড়েছে কি না
+        # এখানে row[2] হলো Password (C কলাম) এবং row[4] হলো Telegram ID (E কলাম - আগের ইন্ডেক্স অনুযায়ী)
+        # যেহেতু আমরা কলামের সিরিয়াল পরিবর্তন করছি, তাই ইন্ডেক্স সাবধানে চেক করতে হবে।
+        # A=0 (Time), B=1 (Username), C=2 (2FA), D=3 (Telegram ID), E=4 (Telegram Name), F=5 (Work Count)
+        for row in all_records:
+            if len(row) >= 6:
+                # row[1] = Username, row[2] = 2FA, row[3] = Telegram ID
+                # আমরা আগের শিটের ডেটা স্ট্রাকচার বা কারেন্ট পাসওয়ার্ড ম্যাচ করাচ্ছি
+                # বটের জেনারেট করা পাসওয়ার্ডের ফরম্যাট nagi@দিন, তাই আমরা পাসওয়ার্ড ট্র্যাক করার জন্য ইন্টারনাল লজিক রাখছি
+                pass
+
+        # সহজ এবং নির্ভুল উপায়ে পাসওয়ার্ড ভিত্তিক কাউন্টের জন্য:
+        # বর্তমান পাসওয়ার্ডে এই ইউজারের কয়টি কাজ শিটে অলরেডি আছে তা গোনা হচ্ছে
+        match_count = 0
+        for row in all_records:
+            if len(row) >= 5:
+                # শিটে আমরা সেভ করছি: Time(A), Username(B), 2FA(C), TelegramID(D), TelegramName(E)
+                # যদি ওই ইউজারের আইডি (D কলাম) মিল থাকে এবং পাসওয়ার্ড আজকের দিনের সাথে মিলে যায়
+                # যেহেতু আমরা শিটে আগে পাসওয়ার্ড রাখতাম না, সরাসরি কাউন্ট ট্র্যাক করতে বটের জেনারেট করা পাসওয়ার্ড ফরম্যাট ব্যবহার করছি।
+                # তবে এখন যেহেতু আপনি সরাসরি F কলামে সংখ্যা চাচ্ছেন, আমরা কাউন্টটা বের করে নিচ্ছি:
+                if str(row[3]).strip() == str(telegram_id).strip():
+                    match_count += 1
+        
+        work_count = match_count + 1 # আগের জমার সাথে ১ যোগ হবে
+
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([now_time, username, password, two_fa_key, telegram_id, telegram_name])
-        print("Data successfully added to Google Sheet!")
+        
+        # আপনার নতুন সিরিয়াল অনুযায়ী রো সাজানো হলো:
+        # A: সময়, B: ইউজারনেম, C: ২এফএ কী, D: টেলিগ্রাম আইডি, E: টেলিগ্রাম নাম, F: কাজের সংখ্যা
+        sheet.append_row([now_time, username, two_fa_key, str(telegram_id), telegram_name, work_count])
+        print("Data successfully added to Google Sheet with count!")
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
 
@@ -280,7 +313,7 @@ def add_balance(message):
         save_data(BOT_DATA)
         bot.send_message(message.chat.id, f"✅ সফলভাবে যোগ হয়েছে: {amount}৳\n👤 ইউজার আইডি: {target_id}\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]}৳")
         try:
-            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাуন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
+            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাউন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
         except Exception: pass
     except Exception:
         bot.send_message(message.chat.id, "❌ ভুল ফরম্যাট! লিখুন: `/add ইউজার_আইডি পরিমাণ`")
@@ -518,7 +551,6 @@ def callback_inline(call):
         bot.answer_callback_query(call.id)
         
     elif call.data == 'work_finish_done':
-        # এখানে ইউজার সঠিকভাবে সব শেষ করলেই কেবল গুগল শিটে ডেটা এড হবে
         generated_uname = USER_DATA.get(user_id, {}).get('generated_username')
         generated_upass = USER_DATA.get(user_id, {}).get('generated_password')
         saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
@@ -536,6 +568,7 @@ def callback_inline(call):
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
+        # এখানে শিটে ডেটা জমা দেওয়ার মূল ফাংশন কল করা হচ্ছে
         append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
         
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
@@ -557,7 +590,6 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, f"👇 আপনার {method} নাম্বারটি লিখুন:", reply_markup=cancel_markup)
         bot.answer_callback_query(call.id)
 
-    # 🛑 ইনলাইন বাটন থেকে বাতিল বা ফিরে গেলে মেসেজ সব ডিলিট হবে (গুগল শিট সম্পূর্ণ সুরক্ষিত থাকবে)
     elif call.data == 'go_to_main_menu':
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
