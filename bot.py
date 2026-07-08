@@ -20,8 +20,8 @@ REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট করার ফাংশন (ভেরিয়েবল থেকে ডেটা নেবে)
-def append_to_google_sheet(username, two_fa_key, telegram_id, telegram_name):
+# 📊 গুগল শিট কানেক্ট করার ফাংশন (পাসওয়ার্ড কলামসহ আপডেট করা)
+def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         
@@ -39,8 +39,8 @@ def append_to_google_sheet(username, two_fa_key, telegram_id, telegram_name):
         # বর্তমান সময় বের করা
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # গুগল শিটে নতুন রো (Row) হিসেবে ডেটা যোগ করা
-        sheet.append_row([now_time, username, two_fa_key, telegram_id, telegram_name])
+        # গুগল শিটে নতুন রো (Row) হিসেবে পাসওয়ার্ডসহ ডেটা যোগ করা
+        sheet.append_row([now_time, username, password, two_fa_key, telegram_id, telegram_name])
         print("Data successfully added to Google Sheet!")
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
@@ -402,7 +402,7 @@ def handle_message(message):
         try:
             amt = float(text)
             saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
-            method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
+            method_name = "বিকাশ" if saved_method == "BKASH" else "নగদ"
             min_amt = 110.0 if saved_method == "BKASH" else 100.0
             
             if amt < min_amt:
@@ -481,6 +481,7 @@ def callback_inline(call):
         uname, upass = generate_credentials()
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['generated_username'] = uname
+        USER_DATA[user_id]['generated_password'] = upass
         
         msg = (
             f"👤 Username: <code>{uname}</code> (কপি করতে টাচ করুন)\n"
@@ -499,18 +500,19 @@ def callback_inline(call):
         
     elif call.data == 'work_finish_done':
         generated_uname = USER_DATA.get(user_id, {}).get('generated_username', 'Unknown_User')
+        generated_upass = USER_DATA.get(user_id, {}).get('generated_password', 'Unknown_Pass')
         saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key', 'No_Key_Provided')
         
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        work_details = f"Uname: {generated_uname} | 2FA: {saved_2fa}"
+        work_details = f"Uname: {generated_uname} | Pass: {generated_upass} | 2FA: {saved_2fa}"
         BOT_DATA["pending_links"][str_user_id].append(work_details)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        # 🚀 ইউজার কাজ সফলভাবে শেষ করার সাথে সাথে গুগল শিটেও ডেটা চলে যাবে
-        append_to_google_sheet(generated_uname, saved_2fa, str_user_id, call.from_user.first_name)
+        # 🚀 ইউজার কাজ সফলভাবে শেষ করার সাথে সাথে গুগল শিটেও পাসওয়ার্ডসহ ডেটা চলে যাবে
+        append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
         
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
