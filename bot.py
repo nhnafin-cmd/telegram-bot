@@ -14,17 +14,25 @@ bot = telebot.TeleBot(TOKEN)
 
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
-WITHDRAW_GROUP_ID = "@igsellonly"  # উইথड्र রিকোয়েস্ট গ্রুপ ইউজারনেম
+WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
 REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা বোনাস দিতে চান তা এখানে সেট করুন
 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট করার ফাংশন
+# 📊 গুগল শিট কানেক্ট করার ফাংশন (ভেরিয়েবল থেকে ডেটা নেবে)
 def append_to_google_sheet(username, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+        
+        # Railway ভেরিয়েবল থেকে credentials এর ডেটা নেওয়া হচ্ছে
+        creds_json = os.getenv("GOOGLE_CREDS")
+        if not creds_json:
+            print("Error: GOOGLE_CREDS variable not found in Railway!")
+            return
+            
+        creds_dict = json.loads(creds_json)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_ID).sheet1
         
@@ -352,7 +360,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 📋 ২এফএ কি সাবমিট করার প্রসেস ওায়নামিক টাচ-টু-কпи সিস্টেম
+    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কпи সিস্টেম
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
