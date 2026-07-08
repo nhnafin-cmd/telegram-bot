@@ -15,7 +15,7 @@ bot = telebot.TeleBot(TOKEN)
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
-REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ইনস্ট্যান্ট বোনাস
+REFER_BONUS = 2.0      # প্রতি রেфারে ২ টাকা ইনস্ট্যান্ট বোনাস
 REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজের কমিশন
 
 BALANCE_FILE = "balances.json"
@@ -47,7 +47,6 @@ def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram
 
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # A: সময় | B: ইউজারনেম | C: পাসওয়ার্ড | D: ২এফএ কী | E: টেলিগ্রাম আইডি | F: টেলিগ্রাম নাম | G: কাজের সংখ্যা
         sheet.append_row([now_time, username, password, two_fa_key, str(telegram_id), telegram_name, work_count])
         print("Data successfully added to Google Sheet with Password!")
     except Exception as e:
@@ -61,7 +60,7 @@ def load_data():
         "pending_links": {}, 
         "approved_counts": {}, 
         "rejected_counts": {},
-        "referred_by": {},    # কে কার রেফারে জয়েন করেছে তা ট্র্যাক করার জন্য স্থায়ী ডাটাবেজ
+        "referred_by": {},    
         "refer_counts": {}    
     }
     if os.path.exists(BALANCE_FILE):
@@ -94,41 +93,41 @@ def generate_credentials():
     password = f"nagi@{today_date}"
     return username, password
 
-# 📱 সাধারণ ইউজারদের জন্য কিবোর্ডের নিচের স্থায়ী মেনু
-def send_user_main_menu(chat_id, text_msg="🧭 **মেইন মেনু:**"):
+# 📱 ইউনিক ও স্টাইলিশ মেইন মেনু কিবোর্ড ডিজাইন
+def send_user_main_menu(chat_id, text_msg="✨ **নিচের মেনু থেকে আপনার কাঙ্ক্ষিত অপশনটি বেছে নিন:**"):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
-        types.KeyboardButton('📝 কাজ •'),
-        types.KeyboardButton('💵 ব্যালেন্স')
+        types.KeyboardButton('💼 কাজ শুরু করুন'),
+        types.KeyboardButton('💰 আমার ব্যালেন্স')
     )
     markup.add(
-        types.KeyboardButton('💰 টাকা উত্তোলন'),
-        types.KeyboardButton('🎁 My Referrals')
+        types.KeyboardButton('💳 টাকা তুলুন'),
+        types.KeyboardButton('🎁 রেফারেল প্যানেল')
     )
     markup.add(
-        types.KeyboardButton('🎧 সাপোর্ট'),
-        types.KeyboardButton('🙋‍♂️ আমি নতুন')
+        types.KeyboardButton('🎧 হেল্প ও সাপোর্ট'),
+        types.KeyboardButton('🙋‍♂️ গাইডলাইন')
     )
     
     if chat_id == ADMIN_ID:
-        markup.add(types.KeyboardButton('👑 এডমিন প্যানেল'))
+        markup.add(types.KeyboardButton('👑 এডমিন কন্ট্রোল'))
         
     bot.send_message(chat_id, text_msg, reply_markup=markup, reply_to_message_id=None, parse_mode="Markdown")
 
-# 👑 এডমিনদের জন্য বিশেষ ইনলাইন মেনু
+# 👑 এডমিনদের জন্য প্রিমিয়াম স্টাইল ইনলাইন মেনু
 def get_admin_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton('📋 পেন্ডিং লিস্ট', callback_data='admin_pending'),
-        types.InlineKeyboardButton('🔎 লিংক চেক', callback_data='admin_check')
+        types.InlineKeyboardButton('📋 পেন্ডিং ভল্ট', callback_data='admin_pending'),
+        types.InlineKeyboardButton('🔎 ইউজার ট্র্যাক', callback_data='admin_check')
     )
     markup.add(
-        types.InlineKeyboardButton('✅ এপ্রুভ কাজ', callback_data='admin_approve'),
-        types.InlineKeyboardButton('❌ রিজেক্ট কাজ', callback_data='admin_reject')
+        types.InlineKeyboardButton('✅ কাজ এপ্রুভ', callback_data='admin_approve'),
+        types.InlineKeyboardButton('❌ কাজ রিজেক্ট', callback_data='admin_reject')
     )
     markup.add(
-        types.InlineKeyboardButton('➕ ব্যালেন্স যোগ', callback_data='admin_add_bal'),
-        types.InlineKeyboardButton('⚙️ ইউজার মেনু', callback_data='go_to_main_menu')
+        types.InlineKeyboardButton('➕ ব্যালেন্স অ্যাড', callback_data='admin_add_bal'),
+        types.InlineKeyboardButton('⚙️ ইউজার ইন্টারফেস', callback_data='go_to_main_menu')
     )
     return markup
 
@@ -158,22 +157,37 @@ def start_cmd(message):
     args = message.text.split()
     if len(args) > 1:
         referrer_id = args[1]
-        # নিজে নিজেকে রেফার করা প্রতিরোধ এবং স্থায়ী ট্র্যাকিং নিশ্চিত করা
         if str_user_id not in BOT_DATA["referred_by"] and referrer_id != str_user_id and referrer_id in BOT_DATA["balances"]:
             BOT_DATA["referred_by"][str_user_id] = referrer_id
             
     save_data(BOT_DATA)
     
     if check_joined(user_id):
-        bot.send_message(message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗")
+        welcome_msg = (
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "👋 **স্বাগতম আমাদের Premium Instagram Sell BD Bot এ!**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "এখানে আপনি প্রতিদিন ইনস্টাগ্রাম অ্যাকাউন্ট তৈরি করে "
+            "সহজে টাকা ইনকাম করতে পারবেন। 🥳🤗\n\n"
+            "👇 কাজ শুরু করতে নিচের বাটনগুলো ব্যবহার করুন।"
+        )
+        bot.send_message(message.chat.id, welcome_msg, parse_mode="Markdown")
         if user_id == ADMIN_ID:
             bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         else:
             send_user_main_menu(message.chat.id)
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('✅ Joined ✅', callback_data='check_joined_btn'))
-        bot.send_message(message.chat.id, f"❌ প্রথমে আমাদের চ্যানেলে জয়েন করুন: {CHANNEL_USERNAME}\n\nতারপর নিচে '✅ Joined ✅' বাটনে চাপ দিন।", reply_markup=markup)
+        markup.add(types.InlineKeyboardButton('🔗 জয়েন চ্যানেল', url=f"https://t.me/{CHANNEL_USERNAME[1:]}"))
+        markup.add(types.InlineKeyboardButton('✅ জয়েন কমপ্লিট ✅', callback_data='check_joined_btn'))
+        
+        join_msg = (
+            "⚠️ **ইউজার ভেরিফিকেশন রিকোয়ার্ড!**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"বটটি ব্যবহার করতে প্রথমে আমাদের অফিশিয়াল চ্যানেলে জয়েন করুন: {CHANNEL_USERNAME}\n\n"
+            "তারপর নিচে থাকা **'✅ জয়েন কমপ্লিট ✅'** বাটনে চাপ দিন।"
+        )
+        bot.send_message(message.chat.id, join_msg, reply_markup=markup, parse_mode="Markdown")
 
 # এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা
 @bot.message_handler(commands=['pending'])
@@ -227,7 +241,7 @@ def check_user_links_cmd(message):
             
     bot.send_message(message.chat.id, msg, parse_mode="HTML")
 
-# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা (১০% অটোমেটিক রেফার কমিশন সহ আপডেট লজিক)
+# ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা 
 @bot.message_handler(commands=['approve'])
 def approve_work(message):
     if message.from_user.id != ADMIN_ID: return
@@ -251,24 +265,21 @@ def approve_work(message):
             BOT_DATA["balances"][str_target_id] = BOT_DATA["balances"].get(str_target_id, 0.0) + amount
             BOT_DATA["approved_counts"][str_target_id] = BOT_DATA["approved_counts"].get(str_target_id, 0) + count_to_approve
             
-            # 🔔 নতুন আপডেট: ১০% রেফারাল কমিশন ক্যালকুলেশন ও ইনস্ট্যান্ট মেসেজ সিস্টেম
-            # 'referred_by' ডাটাবেজ থেকে চেক করা হচ্ছে এই ইউজারকে কেউ রেফার করেছিল কিনা
             referrer_id = BOT_DATA.get("referred_by", {}).get(str_target_id)
             commission_added = 0.0
             
             if referrer_id and str(referrer_id) in BOT_DATA["balances"]:
-                # মোট মূল্যের ১০% কমিশন হিসাব
                 commission_added = amount * REFER_COMMISSION_PERCENT
                 BOT_DATA["balances"][str(referrer_id)] += commission_added
                 
                 try:
-                    # আপনার রিকোয়েস্ট অনুযায়ী কাস্টম নোটিফিকেশন মেসেজ পাঠানো হচ্ছে
                     ref_msg = (
-                        f"🎉 **রেফারেল কমিশন নোটিফিকেশন!**\n\n"
+                        f"🎉 **রেফারেল কমিশন নোটিফিকেশন!**\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n"
                         f"🤝 আপনার রেফার করা বন্ধুর **[{count_to_approve}]** টি কাজ এপ্রুভ হয়েছে।\n"
                         f"💰 সেখান থেকে আপনি **১০%** লাইফটাইম কমিশন হিসেবে **{commission_added:.2f} BDT** আপনার মূল ব্যালেন্সে পেয়ে গেছেন!"
                     )
-                    bot.send_message(int(referrer_id), ref_msg)
+                    bot.send_message(int(referrer_id), ref_msg, parse_mode="Markdown")
                 except Exception:
                     pass
             
@@ -276,7 +287,15 @@ def approve_work(message):
             
             bot.send_message(message.chat.id, f"✅ ইউজার `{target_id}` এর {count_to_approve}টি কাজ এপ্রুভ করা হয়েছে এবং {amount}৳ মূল ব্যালেন্সে যোগ হয়েছে।\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি", parse_mode="Markdown")
             try:
-                bot.send_message(int(target_id), f"🎉 আপনার জমা দেওয়া {count_to_approve}টি কাজ এডমিন চেক করে এপ্রুভ করেছেন!\n📥 মেইন ব্যালেন্সে {amount} BDT যোগ করা হয়েছে।\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][str_target_id]:.2f} BDT\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি")
+                user_notif = (
+                    f"🎉 **কাজের পেমেন্ট আপডেট!**\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📥 আপনার জমা দেওয়া **{count_to_approve}**টি কাজ সফলভাবে এপ্রুভ করা হয়েছে।\n"
+                    f"💰 ব্যালেন্সে যোগ হয়েছে: **{amount} BDT**\n"
+                    f"🔥 বর্তমান ব্যালেন্স: **{BOT_DATA['balances'][str_target_id]:.2f} BDT**\n"
+                    f"⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি"
+                )
+                bot.send_message(int(target_id), user_notif, parse_mode="Markdown")
             except Exception: pass
         else:
             bot.send_message(message.chat.id, "❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
@@ -308,7 +327,14 @@ def reject_work(message):
             
             bot.send_message(message.chat.id, f"❌ ইউজার `{target_id}` এর {count_to_reject}টি কাজ রিজেক্ট করা হয়েছে।\n💬 কারণ: {reason}\n📊 বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি", parse_mode="Markdown")
             try:
-                bot.send_message(int(target_id), f"⚠️ আপনার জমা দেওয়া {count_to_reject}টি কাজ এডমিন রিজেক্ট করেছেন!\n💬 কারণ: {reason}\n⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি")
+                user_rej_msg = (
+                    f"⚠️ **কাজ রিজেক্টের নোটিশ!**\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"❌ আপনার জমা দেওয়া **{count_to_reject}**টি কাজ রিজেক্ট করা হয়েছে।\n"
+                    f"💬 কারণ: *{reason}*\n"
+                    f"⏳ বাকি পেন্ডিং কাজ: {BOT_DATA['pending_counts'][str_target_id]}টি"
+                )
+                bot.send_message(int(target_id), user_rej_msg, parse_mode="Markdown")
             except Exception: pass
         else:
             bot.send_message(message.chat.id, "❌ এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
@@ -349,10 +375,9 @@ def handle_message(message):
         try:
             bot.delete_message(message.chat.id, message.message_id)
             bot.delete_message(message.chat.id, message.message_id - 1)
-        except Exception:
-            pass
+        except Exception: pass
             
-        bot.send_message(message.chat.id, "❌ কাজ সফলভাবে বাতিল করা হয়েছে।")
+        bot.send_message(message.chat.id, "❌ প্রসেসটি সফলভাবে বাতিল করা হয়েছে।")
         send_user_main_menu(message.chat.id)
         return
 
@@ -378,44 +403,59 @@ def handle_message(message):
         return
 
     # --- কিবোর্ড বাটন ক্লিক হ্যান্ডেলিং ---
-    if text == '📝 কাজ •':
+    if text == '💼 কাজ শুরু করুন':
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম কাজ >', callback_data='work_insta_step'))
-        markup.add(types.InlineKeyboardButton('🔙 ফিরে যান', callback_data='go_to_main_menu'))
-        bot.send_message(message.chat.id, "সিলেক্ট করুন:", reply_markup=markup)
+        markup.add(types.InlineKeyboardButton('🟣 ইনস্টাগ্রাম টাস্ক', callback_data='work_insta_step'))
+        markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
+        bot.send_message(message.chat.id, "⚙️ **নিচের বাটন থেকে আপনার সোশ্যাল টাস্ক সিলেক্ট করুন:**", reply_markup=markup, parse_mode="Markdown")
         return
 
-    elif text == '💵 ব্যালেন্স':
+    elif text == '💰 আমার ব্যালেন্স':
         bal = BOT_DATA["balances"].get(str_user_id, 0.0)
-        msg = f"💰 **আপনার ব্যালেন্স ও কাজের রিপোর্ট**\n━━━━━━━━━━━━━━━\n🔥 মূল ব্যালেন্স: {bal:.2f} BDT\n📥 পেন্ডিং কাজ: {BOT_DATA['pending_counts'].get(str_user_id, 0)}টি\n✅ এপ্রুভড কাজ: {BOT_DATA['approved_counts'].get(str_user_id, 0)}টি\n❌ রিজেক্টেড কাজ: {BOT_DATA['rejected_counts'].get(str_user_id, 0)}টি"
+        msg = (
+            "🏦 **আপনার অ্যাকাউন্ট ড্যাশবোর্ড**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💵 মূল ব্যালেন্স: **{bal:.2f} BDT**\n"
+            f"⏳ পেন্ডিং কাজ: **{BOT_DATA['pending_counts'].get(str_user_id, 0)}** টি\n"
+            f"✅ এপ্রুভড কাজ: **{BOT_DATA['approved_counts'].get(str_user_id, 0)}** টি\n"
+            f"❌ রিজেক্টেড কাজ: **{BOT_DATA['rejected_counts'].get(str_user_id, 0)}** টি\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         return
 
-    elif text == '💰 টাকা উত্তোলন':
+    elif text == '💳 টাকা তুলুন':
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('bKash', callback_data='withdraw_bkash'), types.InlineKeyboardButton('Nagad', callback_data='withdraw_nagad'))
-        markup.add(types.InlineKeyboardButton('❌ বাতিল করুন', callback_data='go_to_main_menu'))
-        bot.send_message(message.chat.id, "📩 মাধ্যম সিলেক্ট করুন:", reply_markup=markup)
+        markup.add(types.InlineKeyboardButton('🔥 bKash', callback_data='withdraw_bkash'), types.InlineKeyboardButton('⚡ Nagad', callback_data='withdraw_nagad'))
+        markup.add(types.InlineKeyboardButton('❌ ক্যানসেল', callback_data='go_to_main_menu'))
+        bot.send_message(message.chat.id, "🏧 **টাকা উত্তোলনের মাধ্যম সিলেক্ট করুন:**", reply_markup=markup, parse_mode="Markdown")
         return
 
-    elif text == '🎁 My Referrals':
+    elif text == '🎁 রেফারেল প্যানেল':
         bot_info = bot.get_me()
         refer_link = f"https://t.me/{bot_info.username}?start={user_id}"
-        msg = f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n━━━━━━━━━━━━━━━━━━━━━\n👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n\n🔗 **লিংক:**\n`{refer_link}`"
+        msg = (
+            "🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n\n"
+            f"🔗 **আপনার ইউনিক রেফারেল লিংক:**\n`{refer_link}`\n\n"
+            "💡 *নিয়মাবলী:* আপনার লিংকে কেউ জয়েন করলে সাথে সাথে **২ টাকা** বোনাস পাবেন। "
+            "তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের **১০% কমিশন** আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
+        )
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         return
 
-    elif text == '🙋‍♂️ আমি নতুন':
-        msg = f"আমাদের অফিশিয়াল চ্যানেলে জয়েন হয়ে কাজ শুরু করে দিন।\nLink: {CHANNEL_USERNAME}"
+    elif text == '🙋‍♂️ গাইডলাইন':
+        msg = f"ℹ️ আমাদের অফিশিয়াল চ্যানেলে কাজের ভিডিও গাইডলাইন দেওয়া আছে। দেখে কাজ শুরু করে দিন।\n\n📢 লিংক: {CHANNEL_USERNAME}"
         bot.send_message(message.chat.id, msg)
         return
 
-    elif text == '🎧 সাপোর্ট':
-        msg = "🎧 যেকোনো সমস্যায় সাপোর্ট আইডিতে মেসেজ দিন:\n👉 @nafin_4x_team"
+    elif text == '🎧 হেল্প ও সাপোর্ট':
+        msg = "🎧 যেকোনো সমস্যায় সরাসরি আমাদের কাস্টমার সাপোর্ট আইডিতে মেসেজ দিন:\n\n👉 @nafin_4x_team"
         bot.send_message(message.chat.id, msg)
         return
 
-    elif text == '👑 এডমিন প্যানেল' and user_id == ADMIN_ID:
+    elif text == '👑 এডমিন কন্ট্রোল' and user_id == ADMIN_ID:
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
@@ -431,19 +471,19 @@ def handle_message(message):
             if user_id not in USER_DATA: USER_DATA[user_id] = {}
             USER_DATA[user_id]['2fa_key'] = user_input
             
-            msg1 = bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
-            msg2 = bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
-            msg3 = bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
+            msg1 = bot.send_message(message.chat.id, "✨ অ্যাকাউন্ট সম্পূর্ণ রেডি হলে নিচের বাটনে প্রেস করবেন।")
+            msg2 = bot.send_message(message.chat.id, "📊 নিচের ওটিপি (OTP) কোডটি টাচ করে কপি করুন:")
+            msg3 = bot.send_message(message.chat.id, f"⤵️ **কপি করার জন্য নিচে ক্লিক করুন:**\n\n<code>{code}</code>", parse_mode="HTML")
             
             finish_markup = types.InlineKeyboardMarkup()
-            finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট খোলা শেষ', callback_data='work_finish_done'))
-            finish_markup.add(types.InlineKeyboardButton('❌ বাতিল করুন', callback_data='go_to_main_menu'))
-            msg4 = bot.send_message(message.chat.id, "👇 কাজ সম্পূর্ণ সাবমিট করতে নিচের বাটনে ক্লিক করুন:", reply_markup=finish_markup)
+            finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট তৈরি শেষ', callback_data='work_finish_done'))
+            finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
+            msg4 = bot.send_message(message.chat.id, "👇 ফাইনাল সাবমিট করার বাটন:", reply_markup=finish_markup)
             
             USER_DATA[user_id]['messages_to_delete'] = [message.message_id, msg1.message_id, msg2.message_id, msg3.message_id, msg4.message_id]
             USER_STATES[user_id] = 'WAITING_FOR_FINISH'
         except Exception:
-            bot.send_message(message.chat.id, "❌ **ভুল 2FA Key!** দয়া করে সঠিক কী দিন।")
+            bot.send_message(message.chat.id, "❌ **ভুল 2FA Key!** দয়া করে সঠিক সিক্রেট কী-টি আবার দিন।")
             send_user_main_menu(message.chat.id)
             USER_STATES[user_id] = None
         return
@@ -455,7 +495,7 @@ def handle_message(message):
         USER_DATA[user_id]['method'] = method_type
         
         USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
-        min_limit = "💡১১০৳" if method_type == "BKASH" else "১০০৳"
+        min_limit = "💡 ১১০৳" if method_type == "BKASH" else "💡 ১০০৳"
         
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
@@ -470,7 +510,7 @@ def handle_message(message):
             min_amt = 110.0 if saved_method == "BKASH" else 100.0
             
             if amt < min_amt:
-                bot.send_message(message.chat.id, f"❌ রিকোয়েস্ট ক্যানसेल! {method_name}-এ সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।")
+                bot.send_message(message.chat.id, f"❌ রিকোয়েস্ট ক্যানসেল! {method_name}-এ সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।")
             else:
                 user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
                 if user_bal < amt:
@@ -516,7 +556,6 @@ def callback_inline(call):
     
     if call.data == 'check_joined_btn':
         if check_joined(user_id):
-            # ২ টাকা ইনস্ট্যান্ট বোনাস সিস্টেম
             if str_user_id in BOT_DATA["referred_by"]:
                 referrer = BOT_DATA["referred_by"][str_user_id]
                 if referrer in BOT_DATA["balances"]:
@@ -525,7 +564,7 @@ def callback_inline(call):
                     try:
                         bot.send_message(int(referrer), f"🎁 **আপনার রেফারেল লিংক থেকে একজন অ্যাকাউন্ট করেছে!**\n\n💰 আপনার মূল ব্যালেন্সে **{REFER_BONUS:.2f} Tk** সফলভাবে যোগ করে দেওয়া হয়েছে।")
                     except Exception: pass
-                # এখন কিন্তু referred_by মুছবো না! কারণ পরবর্তীতে তার কাজ ট্র্যাক করে ১০% কমিশন দিতে হবে
+                # referred_by ডাটা স্থায়ী থাকবে যাতে ১০% কমিশন পায়
                 save_data(BOT_DATA)
             
             try:
@@ -534,16 +573,16 @@ def callback_inline(call):
             bot.send_message(call.message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗")
             send_user_main_menu(call.message.chat.id)
         else:
-            bot.answer_callback_query(call.id, "⚠️ আপনি এখনও জয়েন করেননি!", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ আপনি এখনও চ্যানেলে জয়েন করেননি!", show_alert=True)
         return
 
     if not check_joined(user_id): return
 
     if call.data == 'work_insta_step':
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('ইনস্টাগ্রাম 2fa (৳৩.০০)', callback_data='work_insta_start_generate'))
-        markup.add(types.InlineKeyboardButton('🔙 ফিরে যান', callback_data='go_to_main_menu'))
-        bot.edit_message_text("🟣 সিলেক্ট করুন:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        markup.add(types.InlineKeyboardButton('🟣 ইনস্টাগ্রাম 2FA (৩.০০ BDT)', callback_data='work_insta_start_generate'))
+        markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
+        bot.edit_message_text("⚡ **নিচের টাস্কটি বেছে নিন:**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
         
     elif call.data == 'work_insta_start_generate':
         uname, upass = generate_credentials()
@@ -552,13 +591,17 @@ def callback_inline(call):
         USER_DATA[user_id]['generated_password'] = upass
         
         msg = (
-            f"👤 Username: <code>{uname}</code> (কপি করতে টাচ করুন)\n"
-            f"🔐 Password: <code>{upass}</code> (কপি করতে টাচ করুন)\n\n"
-            f"📸 উপরের ইউজারনেম এবং পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন। তারপর নিচে 2FA Set বাটনে ক্লিক করুন 🤪"
+            "🧾 **আপনার জন্য জেনারেট করা অ্যাকাউন্ট ক্রেডেনশিয়াল:**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Username: <code>{uname}</code>\n"
+            f"🔐 Password: <code>{upass}</code>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "💡 *টিপস:* উপরের ইউজারনেম এবং পাসওয়ার্ডটির ওপর একটা টাচ করলেই কপি হয়ে যাবে। "
+            "এই তথ্যগুলো দিয়ে অ্যাকাউন্ট খুলে নিচের **🔒 2FA Set** বাটনে ক্লিক করুন।"
         )
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("🔒 2FA Set", callback_data="open_2fa_input"))
-        markup.add(types.InlineKeyboardButton("❌ বাতিল করুন", callback_data="go_to_main_menu"))
+        markup.add(types.InlineKeyboardButton("🔒 2FA Set করুন", callback_data="open_2fa_input"))
+        markup.add(types.InlineKeyboardButton("❌ বাতিল", callback_data="go_to_main_menu"))
         bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
         bot.answer_callback_query(call.id)
         
@@ -566,7 +609,7 @@ def callback_inline(call):
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(call.message.chat.id, "🔑 **2FA Key টি দিন:** ⤵️", reply_markup=cancel_markup)
+        bot.send_message(call.message.chat.id, "🔑 **আপনার অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:** ⤵️", reply_markup=cancel_markup)
         bot.answer_callback_query(call.id)
         
     elif call.data == 'work_finish_done':
@@ -575,7 +618,7 @@ def callback_inline(call):
         saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
         
         if not generated_uname or not saved_2fa or saved_2fa == 'No_Key_Provided':
-            bot.send_message(call.message.chat.id, "❌ কোনো তথ্য পাওয়া যায়নি।")
+            bot.send_message(call.message.chat.id, "❌ কোনো সেশন ডাটা পাওয়া যায়নি।")
             send_user_main_menu(call.message.chat.id)
             return
 
@@ -598,7 +641,15 @@ def callback_inline(call):
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
         
-        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে এবং গুগল শিটে সংরক্ষণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/OfficialInstagramSellBD")
+        success_done_msg = (
+            "👍 **কাজটি সফলভাবে সাবমিট করা হয়েছে!**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "আপনার অ্যাকাউন্ট ডাটা গুগল শিটে সুরক্ষিতভাবে জমা হয়েছে। "
+            "এডমিন এটি ভেরিফাই করে কিছুক্ষণের মধ্যে ব্যালেন্স অ্যাড করে দেবেন।\n\n"
+            "📢 যেকোনো পেমেন্ট প্রুফ ও রিলিজ লাইভ দেখতে আমাদের গ্রুপ ভিজিট করুন:\n"
+            "👉 https://t.me/OfficialInstagramSellBD"
+        )
+        bot.send_message(call.message.chat.id, success_done_msg, disable_web_page_preview=True)
         send_user_main_menu(call.message.chat.id)
         
         if user_id in USER_DATA: del USER_DATA[user_id]
@@ -611,7 +662,7 @@ def callback_inline(call):
         
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(call.message.chat.id, f"👇 আপনার {method} নাম্বারটি লিখুন:", reply_markup=cancel_markup)
+        bot.send_message(call.message.chat.id, f"👇 আপনার পার্সোনাল **{method}** নাম্বারটি এখানে টাইপ করুন:", reply_markup=cancel_markup)
         bot.answer_callback_query(call.id)
 
     elif call.data == 'go_to_main_menu':
@@ -622,7 +673,7 @@ def callback_inline(call):
             bot.delete_message(call.message.chat.id, call.message.message_id - 1)
         except Exception: pass
             
-        bot.send_message(call.message.chat.id, "❌ কাজ সফলভাবে বাতিল করা হয়েছে।")
+        bot.send_message(call.message.chat.id, "❌ প্রসেসটি বাতিল করা হয়েছে।")
         send_user_main_menu(call.message.chat.id, "🧭 **মেইন মেনু:**")
         bot.answer_callback_query(call.id)
 
