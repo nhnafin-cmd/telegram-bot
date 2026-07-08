@@ -187,7 +187,7 @@ def view_pending(message):
     msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা] [কয়টি]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কয়টি] [কারণ]`"
     bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক (১ ক্লিকে সব ইউজারনেম কপি করার ডাইনামিক ফিচার)
+# 🔎 এডমিন কমান্ড ৪: লিংক চেক (১ ক্লিকে শুধুমাত্র ইউজারনেম কপি করার আপডেট ফিচার)
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -215,16 +215,17 @@ def check_user_links_cmd(message):
         except Exception:
             username_list.append(link)
             
-    # এক ক্লিকে সব কপি করার জন্য ফরম্যাটিং রূপান্তর করা হলো
+    # সিরিয়াল নাম্বার ছাড়া শুধুমাত্র ইউজারনেমগুলো পরপর সাজানো হচ্ছে
     copy_text = ""
-    for i, uname in enumerate(username_list, start=1):
-        copy_text += f"{i}. {uname}\n"
+    for uname in username_list:
+        copy_text += f"{uname}\n"
         
     msg = f"🔎 **ইউজার `{target_id}` এর সকল ইউজারনেম:**\n"
-    msg += f"👇 নিচে টাচ করলে এক ক্লিকে সব কপি হয়ে যাবে:\n\n"
-    msg += f"<code>{copy_text}</code>"
+    msg += f"👇 নিচে টাচ করলে এক ক্লিকে শুধুমাত্র ইউজারনেমগুলো কপি হয়ে যাবে:\n\n"
+    msg += f"<code>{copy_text.strip()}</code>"
             
     bot.send_message(message.chat.id, msg, parse_mode="HTML")
+    
 
 # ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা
 @bot.message_handler(commands=['approve'])
