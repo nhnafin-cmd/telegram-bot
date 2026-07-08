@@ -20,7 +20,7 @@ REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট করার ফাংশন (পাসওয়ার্ড কলামসহ আপডেট করা)
+# 📊 গুগল শিট কানেক্ট করার ফাংশন (পাসওয়ার্ড কলামসহ)
 def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -280,7 +280,7 @@ def add_balance(message):
         save_data(BOT_DATA)
         bot.send_message(message.chat.id, f"✅ সফলভাবে যোগ হয়েছে: {amount}৳\n👤 ইউজার আইডি: {target_id}\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]}৳")
         try:
-            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাউন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
+            bot.send_message(int(target_id), f"💰 আপনার অ্যাকাуন্টে এডমিন {amount} BDT যোগ করেছেন!\n🔥 বর্তমান ব্যালেন্স: {BOT_DATA['balances'][target_id]:.2f} BDT")
         except Exception: pass
     except Exception:
         bot.send_message(message.chat.id, "❌ ভুল ফরম্যাট! লিখুন: `/add ইউজার_আইডি পরিমাণ`")
@@ -294,11 +294,18 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    # যদি ইউজার টেক্সট কিবোর্ড থেকে '❌ বাতিল করুন' বা '🔙 ফিরে যান' লেখে
+    # 🛑 টেক্সট কিবোর্ড থেকে বাতিল করলে (গুগল শিটে কোনো ডেটা যাবে না এবং আগের মেসেজ মুছে যাবে)
     if text in ['❌ বাতিল করুন', '🔙 ফিরে যান']:
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
-        bot.send_message(message.chat.id, "❌ কাজ বাতিল করা হয়েছে।")
+        
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+            bot.delete_message(message.chat.id, message.message_id - 1)
+        except Exception:
+            pass
+            
+        bot.send_message(message.chat.id, "❌ কাজ সফলভাবে বাতিল করা হয়েছে।")
         send_user_main_menu(message.chat.id)
         return
 
@@ -401,7 +408,6 @@ def handle_message(message):
         USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
         min_limit = "💡১১০৳" if method_type == "BKASH" else "১০০৳"
         
-        # নাম্বার দেওয়ার ধাপে টেক্সট কিবোর্ডেও বাতিল বাটন দেওয়া হলো
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
         bot.send_message(message.chat.id, f"👇 কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):", reply_markup=cancel_markup)
@@ -506,18 +512,22 @@ def callback_inline(call):
         
     elif call.data == "open_2fa_input":
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
-        
-        # ইনপুট নেওয়ার সময় নিচে একটা বাতিল বোতামও সেট করে দেওয়া হলো টেক্সট মেনুতে
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
         bot.send_message(call.message.chat.id, "🔑 **2FA Key টি দিন:** ⤵️", reply_markup=cancel_markup)
         bot.answer_callback_query(call.id)
         
     elif call.data == 'work_finish_done':
-        generated_uname = USER_DATA.get(user_id, {}).get('generated_username', 'Unknown_User')
-        generated_upass = USER_DATA.get(user_id, {}).get('generated_password', 'Unknown_Pass')
-        saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key', 'No_Key_Provided')
+        # এখানে ইউজার সঠিকভাবে সব শেষ করলেই কেবল গুগল শিটে ডেটা এড হবে
+        generated_uname = USER_DATA.get(user_id, {}).get('generated_username')
+        generated_upass = USER_DATA.get(user_id, {}).get('generated_password')
+        saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
         
+        if not generated_uname or not saved_2fa or saved_2fa == 'No_Key_Provided':
+            bot.send_message(call.message.chat.id, "❌ কোনো তথ্য পাওয়া যায়নি অথবা কাজ সঠিকভাবে সম্পন্ন করা হয়নি।")
+            send_user_main_menu(call.message.chat.id)
+            return
+
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
@@ -547,10 +557,18 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, f"👇 আপনার {method} নাম্বারটি লিখুন:", reply_markup=cancel_markup)
         bot.answer_callback_query(call.id)
 
+    # 🛑 ইনলাইন বাটন থেকে বাতিল বা ফিরে গেলে মেসেজ সব ডিলিট হবে (গুগল শিট সম্পূর্ণ সুরক্ষিত থাকবে)
     elif call.data == 'go_to_main_menu':
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
-        bot.send_message(call.message.chat.id, "❌ কাজ বাতিল করা হয়েছে।")
+        
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            bot.delete_message(call.message.chat.id, call.message.message_id - 1)
+        except Exception:
+            pass
+            
+        bot.send_message(call.message.chat.id, "❌ কাজ সফলভাবে বাতিল করা হয়েছে।")
         send_user_main_menu(call.message.chat.id, "🧭 **মেইন মেনু:**")
         bot.answer_callback_query(call.id)
 
