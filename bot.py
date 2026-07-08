@@ -6,16 +6,36 @@ import string
 import datetime
 import telebot
 from telebot import types
+import gspread
+from google.oauth2.service_account import Credentials
 
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
-WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
+WITHDRAW_GROUP_ID = "@igsellonly"  # উইথड्र রিকোয়েস্ট গ্রুপ ইউজারনেম
 REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা বোনাস দিতে চান তা এখানে সেট করুন
 
 BALANCE_FILE = "balances.json"
+SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
+
+# 📊 গুগল শিট কানেক্ট করার ফাংশন
+def append_to_google_sheet(username, two_fa_key, telegram_id, telegram_name):
+    try:
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
+        
+        # বর্তমান সময় বের করা
+        now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # গুগল শিটে নতুন রো (Row) হিসেবে ডেটা যোগ করা
+        sheet.append_row([now_time, username, two_fa_key, telegram_id, telegram_name])
+        print("Data successfully added to Google Sheet!")
+    except Exception as e:
+        print(f"Error updating Google Sheet: {e}")
 
 # ডাটা লোড এবং সেভ করার সিস্টেম
 def load_data():
@@ -332,7 +352,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কпи সিস্টেম
+    # 📋 ২এফএ কি সাবমিট করার প্রসেস ওায়নামিক টাচ-টু-কпи সিস্টেম
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -347,7 +367,6 @@ def handle_message(message):
             bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
             bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
             
-            # <code> ট্যাগের কারণে কোডটি আলাদা বক্সে দেখাবে এবং টাচ করলেই কপি হয়ে যাবে
             bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
             
             finish_markup = types.InlineKeyboardMarkup()
@@ -389,7 +408,6 @@ def handle_message(message):
                     save_data(BOT_DATA)
                     num = USER_DATA.get(user_id, {}).get('number', 'N/A')
                     
-                    # আপনার নির্দিষ্ট করা গ্রুপে উইথড্র রিকোয়েস্টের নোটিফিকেশন পাঠানো
                     withdraw_group_msg = (
                         f"📥 **নতুন উইথড্র রিকোয়েস্ট**\n"
                         f"━━━━━━━━━━━━━━━━━━━\n"
@@ -401,13 +419,11 @@ def handle_message(message):
                         f"━━━━━━━━━━━━━━━━━━━"
                     )
                     
-                    # গ্রুপে রিকোয়েস্ট মেসেজ সেন্ড
                     try:
                         bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="Markdown")
                     except Exception as e:
                         print(f"Error sending to channel/group: {e}")
                         
-                    # পিএম-এ এডমিন নোটিফিকেশন (আগের মতো)
                     admin_msg = f"💰 **উইথড্র রিকোয়েস্ট!**\n\n👤 নাম: {message.from_user.first_name}\n🆔 আইডি: `{user_id}`\n💳 মাধ্যম: {method_name}\n📱 নাম্বার: `{num}`\n💵 পরিমাণ: **{amt:.2f} BDT**"
                     bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
                     
@@ -485,11 +501,13 @@ def callback_inline(call):
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
+        # 🚀 ইউজার কাজ সফলভাবে শেষ করার সাথে সাথে গুগল শিটেও ডেটা চলে যাবে
+        append_to_google_sheet(generated_uname, saved_2fa, str_user_id, call.from_user.first_name)
+        
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
         bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
         
-        # এখানে আপনার অফিশিয়াল চ্যানেলের লিংক বসানো হয়েছে
-        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/OfficialInstagramSellBD")
+        bot.send_message(call.message.chat.id, "👍 আপনার কাজ সফলভাবে গ্রহণ করা হয়েছে এবং গুগল শিটে সংরক্ষণ করা হয়েছে।\n\n📢 পেমেন্ট ঠিক কখন পাবেন, সেই আপডেট এই গ্রুপেই জানিয়ে দেওয়া হবে।\nhttps://t.me/OfficialInstagramSellBD")
         send_user_main_menu(call.message.chat.id)
         
         if user_id in USER_DATA: del USER_DATA[user_id]
