@@ -15,7 +15,7 @@ bot = telebot.TeleBot(TOKEN)
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
-REFER_BONUS = 2.0      # প্রতি রেফারে কত টাকা বোনাস দিতে চান তা এখানে সেট করুন
+REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা বোনাস অটো সেট করা হলো
 
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
@@ -34,39 +34,18 @@ def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_ID).sheet1
         
-        # শিটের সব ডেটা নিয়ে আসা (আগে কয়টি কাজ জমা পড়েছে তা চেক করার জন্য)
         all_records = sheet.get_all_values()
         
-        work_count = 1  # ডিফল্ট কাউন্ট ১, যদি নতুন পাসওয়ার্ড বা নতুন ইউজার হয়
-        
-        # লুপ চালিয়ে চেক করা হচ্ছে: একই টেলিগ্রাম আইডি এবং একই পাসওয়ার্ডের কোনো কাজ আগে জমা পড়েছে কি না
-        # এখানে row[2] হলো Password (C কলাম) এবং row[4] হলো Telegram ID (E কলাম - আগের ইন্ডেক্স অনুযায়ী)
-        # যেহেতু আমরা কলামের সিরিয়াল পরিবর্তন করছি, তাই ইন্ডেক্স সাবধানে চেক করতে হবে।
-        # A=0 (Time), B=1 (Username), C=2 (2FA), D=3 (Telegram ID), E=4 (Telegram Name), F=5 (Work Count)
-        for row in all_records:
-            if len(row) >= 6:
-                # row[1] = Username, row[2] = 2FA, row[3] = Telegram ID
-                # আমরা আগের শিটের ডেটা স্ট্রাকচার বা কারেন্ট পাসওয়ার্ড ম্যাচ করাচ্ছি
-                # বটের জেনারেট করা পাসওয়ার্ডের ফরম্যাট nagi@দিন, তাই আমরা পাসওয়ার্ড ট্র্যাক করার জন্য ইন্টারনাল লজিক রাখছি
-                pass
-
-        # সহজ এবং নির্ভুল উপায়ে পাসওয়ার্ড ভিত্তিক কাউন্টের জন্য:
-        # বর্তমান পাসওয়ার্ডে এই ইউজারের কয়টি কাজ শিটে অলরেডি আছে তা গোনা হচ্ছে
         match_count = 0
         for row in all_records:
             if len(row) >= 5:
-                # শিটে আমরা সেভ করছি: Time(A), Username(B), 2FA(C), TelegramID(D), TelegramName(E)
-                # যদি ওই ইউজারের আইডি (D কলাম) মিল থাকে এবং পাসওয়ার্ড আজকের দিনের সাথে মিলে যায়
-                # যেহেতু আমরা শিটে আগে পাসওয়ার্ড রাখতাম না, সরাসরি কাউন্ট ট্র্যাক করতে বটের জেনারেট করা পাসওয়ার্ড ফরম্যাট ব্যবহার করছি।
-                # তবে এখন যেহেতু আপনি সরাসরি F কলামে সংখ্যা চাচ্ছেন, আমরা কাউন্টটা বের করে নিচ্ছি:
                 if str(row[3]).strip() == str(telegram_id).strip():
                     match_count += 1
         
-        work_count = match_count + 1 # আগের জমার সাথে ১ যোগ হবে
+        work_count = match_count + 1 
 
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # আপনার নতুন সিরিয়াল অনুযায়ী রো সাজানো হলো:
         # A: সময়, B: ইউজারনেম, C: ২এফএ কী, D: টেলিগ্রাম আইডি, E: টেলিগ্রাম নাম, F: কাজের সংখ্যা
         sheet.append_row([now_time, username, two_fa_key, str(telegram_id), telegram_name, work_count])
         print("Data successfully added to Google Sheet with count!")
@@ -208,7 +187,7 @@ def view_pending(message):
     msg += "\n\n💡 *লিংক দেখতে লিখুন:* `/check [আইডি]`\n💡 *এপ্রুভ করতে:* `/approve [আইডি] [টাকা] [কয়টি]`\n💡 *রিজেক্ট করতে:* `/reject [আইডি] [কয়টি] [কারণ]`"
     bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক
+# 🔎 এডমিন কমান্ড ৪: লিংক চেক (১ ক্লিকে সব ইউজারনেম কপি করার ডাইনামিক ফিচার)
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -224,18 +203,26 @@ def check_user_links_cmd(message):
         bot.send_message(message.chat.id, f"❌ ইউজার `{target_id}` এর কোনো পেন্ডিং কাজের লিংক পাওয়া যায়নি।", parse_mode="Markdown")
         return
         
-    msg = f"🔎 **ইউজার `{target_id}` এর জমা দেওয়া কাজসমূহ:**\n━━━━━━━━━━━━━━━\n"
-    for i, link in enumerate(links, start=1):
+    username_list = []
+    for link in links:
         try:
-            if "|" in link and "Uname:" in link and "2FA:" in link:
+            if "|" in link and "Uname:" in link:
                 parts = link.split("|")
                 uname_part = parts[0].replace("Uname:", "").strip()
-                fa_part = parts[1].replace("2FA:", "").strip()
-                msg += f"<b>{i}. Unames:</b> <code>{uname_part}</code>\n<b>   2FA:</b> <code>{fa_part}</code>\n\n"
+                username_list.append(uname_part)
             else:
-                msg += f"{i}. <code>{link}</code>\n\n"
+                username_list.append(link)
         except Exception:
-            msg += f"{i}. <code>{link}</code>\n\n"
+            username_list.append(link)
+            
+    # এক ক্লিকে সব কপি করার জন্য ফরম্যাটিং রূপান্তর করা হলো
+    copy_text = ""
+    for i, uname in enumerate(username_list, start=1):
+        copy_text += f"{i}. {uname}\n"
+        
+    msg = f"🔎 **ইউজার `{target_id}` এর সকল ইউজারনেম:**\n"
+    msg += f"👇 নিচে টাচ করলে এক ক্লিকে সব কপি হয়ে যাবে:\n\n"
+    msg += f"<code>{copy_text}</code>"
             
     bot.send_message(message.chat.id, msg, parse_mode="HTML")
 
@@ -327,7 +314,7 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    # 🛑 টেক্সট কিবোর্ড থেকে বাতিল করলে (গুগল শিটে কোনো ডেটা যাবে না এবং আগের মেসেজ মুছে যাবে)
+    # 🛑 টেক্সট কিবোর্ড থেকে বাতিল করলে
     if text in ['❌ বাতিল করুন', '🔙 ফিরে যান']:
         USER_STATES[user_id] = None
         if user_id in USER_DATA: del USER_DATA[user_id]
@@ -387,7 +374,7 @@ def handle_message(message):
     elif text == '🎁 My Referrals':
         bot_info = bot.get_me()
         refer_link = f"https://t.me/{bot_info.username}?start={user_id}"
-        msg = f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n━━━━━━━━━━━━━━━━━━━━━\n👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n💰 বোনাস: **{REFER_BONUS:.2f} BDT**\n\n🔗 **লিংক:**\n`{refer_link}`"
+        msg = f"🎁 **আপনার রেফারেল ড্যাশবোর্ড**\n━━━━━━━━━━━━━━━━━━━━━\n👥 মোট সফল রেফার: **{BOT_DATA['refer_counts'].get(str_user_id, 0)} জন**\n💰 বোনাস: **{BOT_DATA['refer_counts'].get(str_user_id, 0)*REFER_BONUS:.2f} BDT**\n\n🔗 **লিংক:**\n`{refer_link}`"
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         return
 
@@ -405,7 +392,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "👑 **এডমিন কন্ট্রোল প্যানেল:**", reply_markup=get_admin_inline_keyboard(), parse_mode="Markdown")
         return
 
-    # 📋 ২এফএ কি সাবমিট করার প্রসেস ও ডায়নামিক টাচ-টু-কпи সিস্টেম
+    # 📋 ২এফএ কি সাবমিট করার প্রসেস
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -417,14 +404,17 @@ def handle_message(message):
             if user_id not in USER_DATA: USER_DATA[user_id] = {}
             USER_DATA[user_id]['2fa_key'] = user_input
             
-            bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
-            bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
-            bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
+            # মেসেজ আইডিগুলো ট্র্যাকিং এর জন্য সেভ রাখা হচ্ছে যাতে পরে ডিলিট করা যায়
+            msg1 = bot.send_message(message.chat.id, "অ্যাকাউন্ট খোলা শেষ হলে নিচের বাটনে চাপ দিন:")
+            msg2 = bot.send_message(message.chat.id, "নিচের কোডটির ওপর টাচ করে কপি করুন 📊")
+            msg3 = bot.send_message(message.chat.id, f"👇 কোডটি কপি করতে নিচের সংখ্যার ওপর ক্লিক করুন:\n\n<code>{code}</code>", parse_mode="HTML")
             
             finish_markup = types.InlineKeyboardMarkup()
             finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট খোলা শেষ', callback_data='work_finish_done'))
             finish_markup.add(types.InlineKeyboardButton('❌ বাতিল করুন', callback_data='go_to_main_menu'))
-            bot.send_message(message.chat.id, "👇 কাজ সম্পূর্ণ সাবমিট করতে নিচের বাটনে ক্লিক করুন:", reply_markup=finish_markup)
+            msg4 = bot.send_message(message.chat.id, "👇 কাজ সম্পূর্ণ সাবমিট করতে নিচের বাটনে ক্লিক করুন:", reply_markup=finish_markup)
+            
+            USER_DATA[user_id]['messages_to_delete'] = [message.message_id, msg1.message_id, msg2.message_id, msg3.message_id, msg4.message_id]
             USER_STATES[user_id] = 'WAITING_FOR_FINISH'
         except Exception:
             bot.send_message(message.chat.id, "❌ **ভুল 2FA Key!** দয়া করে সঠিক কী দিন।")
@@ -498,6 +488,7 @@ def callback_inline(call):
     user_id = call.from_user.id
     str_user_id = str(user_id)
     
+    # 2. রেফার করলে অটোমেটিক ২ টাকা ব্যালেন্সে যোগ এবং ইনস্ট্যান্ট মেসেজ নোটিফিকেশন সিস্টেম
     if call.data == 'check_joined_btn':
         if check_joined(user_id):
             if str_user_id in BOT_DATA["referred_by"]:
@@ -506,16 +497,19 @@ def callback_inline(call):
                     BOT_DATA["balances"][referrer] += REFER_BONUS
                     BOT_DATA["refer_counts"][referrer] = BOT_DATA["refer_counts"].get(referrer, 0) + 1
                     try:
-                        bot.send_message(int(referrer), f"🎁 **সফল রেফারেল বোনাস!**\n\n👤 আপনার লিংক ব্যবহার করে একজন নতুন ইউজার জয়েন করেছে।\n💰 আপনার অ্যাকাউন্টে **{REFER_BONUS:.2f} BDT** যোগ করা হয়েছে।")
+                        # আপনার রিকোয়েস্ট অনুযায়ী কাস্টম ডাইনামিক মেসেজ পাঠানো হচ্ছে
+                        bot.send_message(int(referrer), f"🎁 **আপনার রেফারেল লিংক থেকে একজন অ্যাকাউন্ট করেছে!**\n\n💰 আপনার মূল ব্যালেন্সে **{REFER_BONUS:.2f} Tk** সফলভাবে যোগ করে দেওয়া হয়েছে।")
                     except Exception: pass
                 del BOT_DATA["referred_by"][str_user_id]
                 save_data(BOT_DATA)
             
-            bot.delete_message(call.message.chat.id, call.message.message_id)
+            try:
+                bot.delete_message(call.message.chat.id, call.message.message_id)
+            except Exception: pass
             bot.send_message(call.message.chat.id, "🌷 স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗")
             send_user_main_menu(call.message.chat.id)
         else:
-            bot.answer_callback_query(call.id, "⚠️ আপনি অন্তত জয়েন করেননি!", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ আপনি এখনও জয়েন করেননি!", show_alert=True)
         return
 
     if not check_joined(user_id): return
@@ -556,9 +550,17 @@ def callback_inline(call):
         saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
         
         if not generated_uname or not saved_2fa or saved_2fa == 'No_Key_Provided':
-            bot.send_message(call.message.chat.id, "❌ কোনো তথ্য পাওয়া যায়নি অথবা কাজ সঠিকভাবে সম্পন্ন করা হয়নি।")
+            bot.send_message(call.message.chat.id, "❌ কোনো তথ্য পাওয়া যায়নি।")
             send_user_main_menu(call.message.chat.id)
             return
+
+        # 1. কাজ সফলভাবে জমা দেওয়ার পর ওপরের মেসেজগুলো স্বয়ংক্রিয়ভাবে মুছে দেওয়ার লজিক
+        if user_id in USER_DATA and 'messages_to_delete' in USER_DATA[user_id]:
+            for msg_id in USER_DATA[user_id]['messages_to_delete']:
+                try:
+                    bot.delete_message(call.message.chat.id, msg_id)
+                except Exception:
+                    pass
 
         if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
@@ -568,7 +570,6 @@ def callback_inline(call):
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        # এখানে শিটে ডেটা জমা দেওয়ার মূল ফাংশন কল করা হচ্ছে
         append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
         
         admin_msg = f"📥 **নতুন কাজ জমা পড়েছে!**\n\n👤 নাম: {call.from_user.first_name}\n🆔 আইডি: `{user_id}`\n📝 **কাজ:** `{work_details}`"
