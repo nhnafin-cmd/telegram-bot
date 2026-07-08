@@ -20,7 +20,7 @@ REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ব
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 📊 গুগল শিট কানেক্ট এবং ডাইনামিক কাউন্ট করার ফাংশন
+# 📊 গুগল শিট কানেক্ট এবং পাসওয়ার্ড সহ ডেটা অ্যাড করার সঠিক ফাংশন
 def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -38,19 +38,21 @@ def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram
         
         match_count = 0
         for row in all_records:
-            if len(row) >= 5:
-                if str(row[3]).strip() == str(telegram_id).strip():
+            if len(row) >= 4:  # এখানে চেক ইনডেক্স ঠিক করা হয়েছে
+                if str(row[4]).strip() == str(telegram_id).strip(): # আইডি এখন ৫ম কলামে যাবে
                     match_count += 1
         
         work_count = match_count + 1 
 
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # A: সময়, B: ইউজারনেম, C: ২এফএ কী, D: টেলিগ্রাম আইডি, E: টেলিগ্রাম নাম, F: কাজের সংখ্যা
-        sheet.append_row([now_time, username, two_fa_key, str(telegram_id), telegram_name, work_count])
-        print("Data successfully added to Google Sheet with count!")
+        # 🔔 এখন সিরিয়াল অনুযায়ী সব ডেটা শিটে জমা হবে:
+        # A: সময় | B: ইউজারনেম | C: পাসওয়ার্ড | D: ২এফএ কী | E: টেলিগ্রাম আইডি | F: টেলিগ্রাম নাম | G: কাজের সংখ্যা
+        sheet.append_row([now_time, username, password, two_fa_key, str(telegram_id), telegram_name, work_count])
+        print("Data successfully added to Google Sheet with Password!")
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
+        
 
 # ডাটা লোড এবং সেভ করার সিস্টেম
 def load_data():
