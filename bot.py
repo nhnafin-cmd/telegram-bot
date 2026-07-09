@@ -21,15 +21,33 @@ REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজে
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ (বটের সর্বত্র ব্যবহৃত)
+# 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ (ডিভাইস সাপোর্ট না করলে নরমাল ইমোজি শো করবে)
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
 DIVIDER_LINE = DIVIDER * 7
 
-EMOJI_CRYSTAL = "<tg-emoji emoji-id='5353027129250453493'>🔮</tg-emoji>"
-EMOJI_FIRE    = "<tg-emoji emoji-id='5334763399299506604'>🔥</tg-emoji>"
-EMOJI_USERS   = "<tg-emoji emoji-id='5420145051336485498'>👥</tg-emoji>"
-EMOJI_CALENDAR= "<tg-emoji emoji-id='5352585194295564660'>📅</tg-emoji>"
-EMOJI_LOCK    = "<tg-emoji emoji-id='5337255927735163754'>🔒</tg-emoji>"
+EMOJI_CRYSTAL = "<tg-emoji emoji-id='5353027129250453493'>🔮</tg-emoji>🔮"
+EMOJI_FIRE    = "<tg-emoji emoji-id='5334763399299506604'>🔥</tg-emoji>🔥"
+EMOJI_USERS   = "<tg-emoji emoji-id='5420145051336485498'>👥</tg-emoji>👥"
+EMOJI_CALENDAR= "<tg-emoji emoji-id='5352585194295564660'>📅</tg-emoji>📅"
+EMOJI_LOCK    = "<tg-emoji emoji-id='5337255927735163754'>🔒</tg-emoji>🔒"
+
+# 🔄 মেসেজ ট্র্যাক এবং অটো-ডিলিট করার ফাংশনসমূহ
+def track_msg(user_id, message_obj):
+    if not message_obj: return
+    if user_id not in USER_DATA:
+        USER_DATA[user_id] = {}
+    if 'msg_ids' not in USER_DATA[user_id]:
+        USER_DATA[user_id]['msg_ids'] = []
+    USER_DATA[user_id]['msg_ids'].append(message_obj.message_id)
+
+def clear_user_session_messages(chat_id, user_id):
+    if user_id in USER_DATA and 'msg_ids' in USER_DATA[user_id]:
+        for msg_id in USER_DATA[user_id]['msg_ids']:
+            try:
+                bot.delete_message(chat_id, msg_id)
+            except Exception:
+                pass
+        USER_DATA[user_id]['msg_ids'] = []
 
 # 📊 গুগল শিট কানেক্ট এবং পাসওয়ার্ড সহ ডেটা অ্যাড করার ফাংশন
 def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
@@ -91,7 +109,7 @@ def generate_credentials():
     password = f"nagi@{today_date}"
     return username, password
 
-# 📱 ১. প্রধান মেনু কিবোর্ড ডিজাইন (কাস্টম ইমোজি সাপোর্ট সহ)
+# 📱 ১. প্রধান মেনু কিবোর্ড ডিজাইন
 def send_user_main_menu(chat_id, text_msg=None):
     if text_msg is None:
         text_msg = (
@@ -127,7 +145,7 @@ def send_account_submit_panel(chat_id):
     markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
 
-# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু
+# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু (বিকাশ ১১০৳ / নগদ ১০০৳ লিমিট সেট করা)
 def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refer=0):
     withdraw_msg = (
         f"{DIVIDER_LINE}\n"
@@ -139,7 +157,7 @@ def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refe
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CALENDAR} <b>Your Balance:</b> <code>{balance} ৳</code>\n"
         f"{DIVIDER_LINE}\n"
-        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>600.0 ৳</code>\n\n"
+        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>বিকাশ ১১০৳ / নগদ ১০০৳</code>\n\n"
         "📌 <b>পেমেন্ট মেথড সিলেক্ট করুন:</b>"
     )
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -183,6 +201,7 @@ def check_joined(user_id):
 def start_cmd(message):
     user_id = message.from_user.id
     USER_STATES[user_id] = None
+    clear_user_session_messages(message.chat.id, user_id)
     if user_id in USER_DATA: del USER_DATA[user_id]
     
     str_user_id = str(user_id)
@@ -372,6 +391,7 @@ def handle_message(message):
 
     if text in ['❌ বাতিল করুন', '🔙 ফিরে যান']:
         USER_STATES[user_id] = None
+        clear_user_session_messages(message.chat.id, user_id)
         if user_id in USER_DATA: del USER_DATA[user_id]
         bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>প্রসেসটি সফলভাবে বাতিল করা হয়েছে।</b>", parse_mode="HTML")
         send_user_main_menu(message.chat.id)
@@ -451,13 +471,20 @@ def handle_message(message):
             if user_id not in USER_DATA: USER_DATA[user_id] = {}
             USER_DATA[user_id]['2fa_key'] = user_input
             
-            bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} অ্যাকাউন্ট সম্পূর্ণ রেডি হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
-            bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
+            m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} অ্যাকাউন্ট সম্পূর্ণ রেডি হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
+            m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
             
             finish_markup = types.InlineKeyboardMarkup()
             finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট তৈরি শেষ', callback_data='work_finish_done'))
             finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
-            bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
+            m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
+            
+            # ডিলিট করার জন্য মেসেজগুলো ট্র্যাকিং লিস্টে যুক্ত করা হচ্ছে
+            track_msg(user_id, message)
+            track_msg(user_id, m1)
+            track_msg(user_id, m2)
+            track_msg(user_id, m3)
+            
             USER_STATES[user_id] = 'WAITING_FOR_FINISH'
         except Exception:
             bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
@@ -562,14 +589,16 @@ def callback_inline(call):
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("🔒 2FA Set করুন", callback_data="open_2fa_input"))
         markup.add(types.InlineKeyboardButton("❌ বাতিল", callback_data="go_to_main_menu"))
-        bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
+        m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
+        track_msg(user_id, m_gen) # ক্রেডেনশিয়াল মেসেজ ট্র্যাক করা হলো
         bot.answer_callback_query(call.id)
         
     elif call.data == "open_2fa_input":
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} <b>আপনার অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", reply_markup=cancel_markup, parse_mode="HTML")
+        m_input = bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} <b>আপনার অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", reply_markup=cancel_markup, parse_mode="HTML")
+        track_msg(user_id, m_input) # ইনপুট গাইডলাইন মেসেজ ট্র্যাক করা হলো
         bot.answer_callback_query(call.id)
         
     elif call.data == 'work_finish_done':
@@ -578,6 +607,7 @@ def callback_inline(call):
         saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
         
         if not generated_uname or not saved_2fa:
+            clear_user_session_messages(call.message.chat.id, user_id)
             bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} কোনো সেশন ডাটা পাওয়া যায়নি।", parse_mode="HTML")
             send_user_main_menu(call.message.chat.id)
             return
@@ -591,6 +621,9 @@ def callback_inline(call):
         save_data(BOT_DATA)
         
         append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
+        
+        # সফল সাবমিটের পর চ্যাট স্ক্রিন পরিষ্কার করা
+        clear_user_session_messages(call.message.chat.id, user_id)
         
         success_done_msg = (
             f"{EMOJI_CRYSTAL} <b>কাজটি সফলভাবে সাবমিট করা হয়েছে!</b>\n{DIVIDER_LINE}\n"
@@ -612,6 +645,7 @@ def callback_inline(call):
 
     elif call.data == 'go_to_main_menu':
         USER_STATES[user_id] = None
+        clear_user_session_messages(call.message.chat.id, user_id)
         if user_id in USER_DATA: del USER_DATA[user_id]
         bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} প্রসেসটি বাতিল করা হয়েছে।", parse_mode="HTML")
         send_user_main_menu(call.message.chat.id, f"{DIVIDER_LINE}\n{EMOJI_CRYSTAL} <b>মেইন মেনু:</b>")
