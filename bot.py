@@ -100,14 +100,24 @@ BOT_DATA = load_data()
 USER_STATES = {}
 USER_DATA = {}
 
-# 📆 ডাইনামিক ইউজারনেম এবং পাসওয়ার্ড জেনারেটর
+# 📆 ডাইনামিক ইউজারনেম এবং সন্ধ্যা ৬টার লজিক অনুযায়ী পাসওয়ার্ড জেনারেটর
 def generate_credentials():
     first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
     last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
     username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
-    today_date = datetime.datetime.now().strftime("%d")
-    password = f"nagi@{today_date}"
+    
+    now = datetime.datetime.now()
+    # যদি সন্ধ্যা ৬টা (১৮:০০) বেজে যায় বা পার হয়ে যায়, তবে পাসওয়ার্ডে আগামীকালের তারিখ বসবে
+    if now.hour >= 18:
+        target_date = now + datetime.timedelta(days=1)
+    else:
+        target_date = now
+        
+    date_str = target_date.strftime("%d")
+    password = f"nagi@{date_str}"
+    
     return username, password
+    
 
 # 📱 ১. প্রধান মেনু কিবোর্ড ডিজাইন
 def send_user_main_menu(chat_id, text_msg=None):
