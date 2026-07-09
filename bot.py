@@ -21,7 +21,7 @@ REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজে
 BALANCE_FILE = "balances.json"
 SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
 
-# 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ (ডিভাইস সাপোর্ট না করলে নরমাল ইমোজি শো করবে)
+# 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
 DIVIDER_LINE = DIVIDER * 7
 
@@ -145,7 +145,7 @@ def send_account_submit_panel(chat_id):
     markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
 
-# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু (বিকাশ ১১০৳ / নগদ ১০০৳ লিমিট সেট করা)
+# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু
 def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refer=0):
     withdraw_msg = (
         f"{DIVIDER_LINE}\n"
@@ -178,11 +178,11 @@ def send_refer_panel(chat_id, refer_count=0):
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CRYSTAL} <b>আপনার রেফারেল লিংক:</b>\n<code>{refer_link}</code>\n\n"
         f"💡 <i>নিয়মাবলী:</i> আপনার লিংকে কেউ জয়েন করলে সাথে সাথে <b>২ টাকা</b> বোনাস পাবেন। "
-        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
+        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
     )
     bot.send_message(chat_id, refer_msg, parse_mode="HTML")
 
-# 👑 এডমিন ইনলাইন মেনু
+# 👑 এডমিন ইনলাইন মেনু (Callback Data ফিক্স করা হয়েছে)
 def get_admin_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(types.InlineKeyboardButton('📋 পেন্ডিং ভল্ট', callback_data='admin_pending'), types.InlineKeyboardButton('🔎 ইউজার ট্র্যাক', callback_data='admin_check'))
@@ -258,7 +258,7 @@ def check_user_links_cmd(message):
     args = message.text.split()[1:]
     if not args:
         USER_STATES[message.from_user.id] = 'WAITING_FOR_CHECK_ID'
-        bot.send_message(message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার টেলিগ্রাম আইডি-টি পাঠান:")
+        bot.send_message(message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার টেলিগ্রাম আইডি-টি পাঠান:", parse_mode="HTML")
         return
     
     target_id = args[0]
@@ -326,7 +326,7 @@ def approve_work(message):
                 )
                 bot.send_message(int(target_id), user_notif, parse_mode="HTML")
             except Exception: pass
-        else: bot.send_message(message.chat.id, f"{EMOJI_LOCK} এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
+        else: bot.send_message(message.chat.id, f"{EMOJI_LOCK} এই ইউজারের কোনো পেন্ডিং কাজ নেই!", parse_mode="HTML")
     except Exception:
         bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল ফরম্যাট! লিখুন: <code>/approve ইউজার_আইডি টাকা কয়টি</code>", parse_mode="HTML")
 
@@ -360,8 +360,8 @@ def reject_work(message):
                 )
                 bot.send_message(int(target_id), user_rej_msg, parse_mode="HTML")
             except Exception: pass
-        else: bot.send_message(message.chat.id, f"{EMOJI_LOCK} এই ইউজারের কোনো পেন্ডিং কাজ নেই!")
-    except Exception: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল ফরম্যাট!")
+        else: bot.send_message(message.chat.id, f"{EMOJI_LOCK} এই ইউজারের কোনো পেন্ডিং কাজ নেই!", parse_mode="HTML")
+    except Exception: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল ফরম্যাট!", parse_mode="HTML")
 
 # ➕ এডমিন কমান্ড ৩: সরাসরি ব্যালেন্স যোগ করা
 @bot.message_handler(commands=['add'])
@@ -374,11 +374,11 @@ def add_balance(message):
         str_target_id = str(target_id)
         BOT_DATA["balances"][str_target_id] = BOT_DATA["balances"].get(str_target_id, 0.0) + amount
         save_data(BOT_DATA)
-        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} সফলভাবে যোগ হয়েছে: {amount}৳")
+        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} সফলভাবে যোগ হয়েছে: {amount}৳", parse_mode="HTML")
         try:
             bot.send_message(int(target_id), f"{EMOJI_CRYSTAL} আপনার অ্যাকাউন্টে এডমিন <b>{amount} BDT</b> সরাসরি যোগ করেছেন!", parse_mode="HTML")
         except Exception: pass
-    except Exception: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল ফরম্যাট!")
+    except Exception: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল ফরম্যাট!", parse_mode="HTML")
 
 # সাধারণ মেসেজ ও বটম কিবোর্ড টেক্সট হ্যান্ডেলার
 @bot.message_handler(func=lambda message: True)
@@ -590,7 +590,7 @@ def callback_inline(call):
         markup.add(types.InlineKeyboardButton("🔒 2FA Set করুন", callback_data="open_2fa_input"))
         markup.add(types.InlineKeyboardButton("❌ বাতিল", callback_data="go_to_main_menu"))
         m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
-        track_msg(user_id, m_gen) # ক্রেডেনশিয়াল মেসেজ ট্র্যাক করা হলো
+        track_msg(user_id, m_gen)
         bot.answer_callback_query(call.id)
         
     elif call.data == "open_2fa_input":
@@ -598,7 +598,7 @@ def callback_inline(call):
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
         m_input = bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} <b>আপনার অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", reply_markup=cancel_markup, parse_mode="HTML")
-        track_msg(user_id, m_input) # ইনপুট গাইডলাইন মেসেজ ট্র্যাক করা হলো
+        track_msg(user_id, m_input)
         bot.answer_callback_query(call.id)
         
     elif call.data == 'work_finish_done':
@@ -622,7 +622,6 @@ def callback_inline(call):
         
         append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
         
-        # সফল সাবমিটের পর চ্যাট স্ক্রিন পরিষ্কার করা
         clear_user_session_messages(call.message.chat.id, user_id)
         
         success_done_msg = (
@@ -661,12 +660,22 @@ def callback_inline(call):
         
     elif call.data == 'admin_check':
         USER_STATES[user_id] = 'WAITING_FOR_CHECK_ID'
-        bot.send_message(call.message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার আইডি দিন:")
+        bot.send_message(call.message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার আইডি দিন:", parse_mode="HTML")
         bot.answer_callback_query(call.id)
         
     elif call.data == 'admin_approve':
         USER_STATES[user_id] = 'WAITING_FOR_APPROVE_DATA'
         bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} ফরম্যাট: <code>আইডি টাকা কয়টি</code>", parse_mode="HTML")
+        bot.answer_callback_query(call.id)
+        
+    elif call.data == 'admin_reject':
+        USER_STATES[user_id] = 'WAITING_FOR_REJECT_DATA'
+        bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} ফরম্যাট: <code>আইডি কয়টি কারণ</code>", parse_mode="HTML")
+        bot.answer_callback_query(call.id)
+        
+    elif call.data == 'admin_add_bal':
+        USER_STATES[user_id] = 'WAITING_FOR_ADD_DATA'
+        bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} ফরম্যাট: <code>আইডি টাকা</code>", parse_mode="HTML")
         bot.answer_callback_query(call.id)
 
 if __name__ == '__main__':
