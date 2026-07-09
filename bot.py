@@ -145,7 +145,7 @@ def send_account_submit_panel(chat_id):
     markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
 
-# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু
+# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু (২০ টাকা লিমিট এবং ৫ টাকা ফি টেক্সট সেট করা)
 def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refer=0):
     withdraw_msg = (
         f"{DIVIDER_LINE}\n"
@@ -157,7 +157,8 @@ def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refe
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CALENDAR} <b>Your Balance:</b> <code>{balance} ৳</code>\n"
         f"{DIVIDER_LINE}\n"
-        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>বিকাশ ১১০৳ / নগদ ১০০৳</code>\n\n"
+        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>২০ ৳</code>\n"
+        f"⚠️ <b>উইথড্র চার্জ / ফি:</b> <code>৫ ৳ (প্রতি উইথড্রতে কাটবে)</code>\n\n"
         "📌 <b>পেমেন্ট মেথড সিলেক্ট করুন:</b>"
     )
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -178,11 +179,11 @@ def send_refer_panel(chat_id, refer_count=0):
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CRYSTAL} <b>আপনার রেফারেল লিংক:</b>\n<code>{refer_link}</code>\n\n"
         f"💡 <i>নিয়মাবলী:</i> আপনার লিংকে কেউ জয়েন করলে সাথে সাথে <b>২ টাকা</b> বোনাস পাবেন। "
-        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
+        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
     )
     bot.send_message(chat_id, refer_msg, parse_mode="HTML")
 
-# 👑 এডমিন ইনলাইন মেনু (Callback Data ফিক্স করা হয়েছে)
+# 👑 এডমিন ইনলাইন মেনু
 def get_admin_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(types.InlineKeyboardButton('📋 পেন্ডিং ভল্ট', callback_data='admin_pending'), types.InlineKeyboardButton('🔎 ইউজার ট্র্যাক', callback_data='admin_check'))
@@ -499,43 +500,48 @@ def handle_message(message):
         USER_DATA[user_id]['method'] = method_type
         
         USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
-        min_limit = "💡 ১১০৳" if method_type == "BKASH" else "💡 ১০০৳"
         
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {min_limit}):", reply_markup=cancel_markup, parse_mode="HTML")
+        bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন ২০৳ এবং উইথড্র ফি ৫৳):", reply_markup=cancel_markup, parse_mode="HTML")
         return
 
+    # 💳 উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন এবং ৫ টাকা ফি লজিক সেটআপ
     if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
         try:
             amt = float(text)
             saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
             method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
-            min_amt = 110.0 if saved_method == "BKASH" else 100.0
+            min_amt = 20.0  # সর্বনিম্ন উইথড্র ২০ টাকা
+            fee_amt = 5.0   # অতিরিক্ত ৫ টাকা উইথড্র ফি
+            total_deduction = amt + fee_amt # ইউজার ব্যালেন্স থেকে মোট যত কাটা হবে
             
             if amt < min_amt:
                 bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
             else:
                 user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
-                if user_bal < amt:
-                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 বর্তমান ব্যালেন্স: {user_bal:.2f} BDT", parse_mode="HTML")
+                if user_bal < total_deduction:
+                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 ৫৳ উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>\n📌 আপনার বর্তমান ব্যালেন্স: {user_bal:.2f} BDT", parse_mode="HTML")
                 else:
-                    BOT_DATA["balances"][str_user_id] -= amt
+                    # ৫ টাকা ফিসহ ব্যালেন্স কাটা হলো
+                    BOT_DATA["balances"][str_user_id] -= total_deduction
                     save_data(BOT_DATA)
                     num = USER_DATA.get(user_id, {}).get('number', 'N/A')
                     
                     withdraw_group_msg = (
-                        f"{EMOJI_CRYSTAL} <b>নতুন উইথড্র রিকোয়েস্ট</b>\n{DIVIDER_LINE}\n"
+                        f"{EMOJI_CRYSTAL} <b>নতুন উইথड्र রিকোয়েস্ট</b>\n{DIVIDER_LINE}\n"
                         f"👤 নাম: {message.from_user.first_name}\n"
                         f"🆔 আইডি: <code>{user_id}</code>\n"
                         f"💳 মাধ্যম: <b>{method_name}</b>\n"
                         f"📱 নাম্বার: <code>{num}</code>\n"
-                        f"💰 পরিমাণ: <b>{amt:.2f} BDT</b>"
+                        f"💰 ইউজার পাবে: <b>{amt:.2f} BDT</b>\n"
+                        f"⛽ উইথড্র ফি কাটা হয়েছে: <b>{fee_amt:.2f} BDT</b>\n"
+                        f"📊 মোট কাটা হয়েছে: <b>{total_deduction:.2f} BDT</b>"
                     )
                     try: bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="HTML")
                     except Exception: pass
                     
-                    bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!\n📉 বর্তমান মূল ব্যালেন্স: {BOT_DATA['balances'][str_user_id]:.2f} BDT", parse_mode="HTML")
+                    bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!\n📉 (৫৳ ফি সহ মোট {total_deduction:.2f}৳ কাটা হয়েছে)\n🔥 বর্তমান মূল ব্যালেন্স: {BOT_DATA['balances'][str_user_id]:.2f} BDT", parse_mode="HTML")
         except ValueError:
             bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল অ্যামাউন্ট! শুধুমাত্র সংখ্যায় টাকার পরিমাণ লিখুন।", parse_mode="HTML")
         
