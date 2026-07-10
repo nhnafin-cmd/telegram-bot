@@ -242,7 +242,7 @@ def start_cmd(message):
         )
         bot.send_message(message.chat.id, join_msg, reply_markup=markup, parse_mode="HTML")
 
-# 📋 এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা (২ ভাগ করা হয়েছে)
+# 📋 এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা
 def process_view_pending(chat_id, platform_type):
     msg = f"{EMOJI_CRYSTAL} <b>পেন্ডিং কাজের তালিকা ({platform_type}):</b>\n{DIVIDER_LINE}\n"
     has_pending = False
@@ -263,7 +263,7 @@ def process_view_pending(chat_id, platform_type):
     msg += f"\n\n{EMOJI_FIRE} <i>লিংক দেখতে:</i> <code>/check [আইডি]</code>\n{EMOJI_CALENDAR} <i>এপ্রুভ করতে:</i> <code>/approve [আইডি] [টাকা] [কয়টি]</code>"
     bot.send_message(chat_id, msg, parse_mode="HTML")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক করা (ইনস্টাগ্রাম ও ফেসবুক ডাটা আলাদা প্রদর্শন এবং ওয়ান-ট্যাপ কপি সিস্টেম)
+# 🔎 এডমিন কমান্ড ৪: স্ক্রিনশট ১-এর মতো ওয়ান-ট্যাপ সিঙ্গেল ক্লিকে ফ্রেশ কপি সিস্টেম
 def process_check_user_links(chat_id, target_id, platform_type):
     links = BOT_DATA.get("pending_links", {}).get(str(target_id), [])
     filtered_links = [link for link in links if f"Type: {platform_type}" in link]
@@ -273,30 +273,25 @@ def process_check_user_links(chat_id, target_id, platform_type):
         return
         
     copy_text = ""
-    for idx, link in enumerate(filtered_links, 1):
+    for link in filtered_links:
         if platform_type == "INSTA":
-            # ইনস্টাগ্রাম ফরম্যাট থেকে ইউজারনেম আলাদা করা
             try:
+                # ফুল ডেটা থেকে শুধু ইউজারনেম আলাদা করে টাচ-কপি মোডে নেওয়া হচ্ছে
                 uname = link.split("Uname: ")[1].split(" |")[0]
-                upass = link.split("Pass: ")[1].split(" |")[0]
-                u2fa = link.split("2FA: ")[1]
-                copy_text += f"{idx}. 👤 <code>{uname}</code> | 🔐 <code>{upass}</code> | 🔒 <code>{u2fa}</code>\n"
+                copy_text += f"<code>{uname}</code>\n"
             except Exception:
-                copy_text += f"{idx}. <code>{link}</code>\n"
+                copy_text += f"<code>{link}</code>\n"
         else:
-            # ফেসবুক ফরম্যাট: শুধুমাত্র UID ওয়ান-ট্যাপ কপি হবে
             try:
+                # ফুল ডেটা থেকে শুধু ফেসবুক UID আলাদা করে টাচ-কপি মোডে নেওয়া হচ্ছে
                 fuid = link.split("UID: ")[1].split(" |")[0]
-                fname = link.split("Name: ")[1].split(" |")[0]
-                fpass = link.split("Pass: ")[1].split(" |")[0]
-                f2fa = link.split("2FA: ")[1]
-                copy_text += f"{idx}. 🆔 <code>{fuid}</code> | 👤 {fname} | 🔐 <code>{fpass}</code> | 🔒 <code>{f2fa}</code>\n"
+                copy_text += f"<code>{fuid}</code>\n"
             except Exception:
-                copy_text += f"{idx}. <code>{link}</code>\n"
+                copy_text += f"<code>{link}</code>\n"
             
-    msg = f"{EMOJI_CRYSTAL} <b>ইউজার <code>{target_id}</code> এর পেন্ডিং ({platform_type}) ডাটা:</b>\n{DIVIDER_LINE}\n{copy_text.strip()}"
+    msg = f"{EMOJI_CRYSTAL} <b>ইউজার {target_id} এর সকল {'ইউজারনেম' if platform_type == 'INSTA' else 'ইউআইডি'}:</b>\n\n{copy_text.strip()}"
     bot.send_message(chat_id, msg, parse_mode="HTML")
-
+    
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
