@@ -19,9 +19,9 @@ REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ই
 REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজের কমিশন
 
 BALANCE_FILE = "balances.json"
-# 📊 দুই কাজের জন্য দুটি আলাদা গুগল শিট আইডি (আপনার দেওয়া ফেসবুক আইডি সেট করা হয়েছে)
+# 📊 গুগল শিট আইডি
 INSTA_SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # ইনস্টাগ্রাম শিট
-FB_SPREADSHEET_ID = "1Bl6y5eHkFVjpqy6NIPCGdZBo0u6Ekod51B6gXJ0sAZk"      # আপনার ফেসবুক শিট আইডি
+FB_SPREADSHEET_ID = "1Bl6y5eHkFVjpqy6NIPCGdZBo0u6Ekod51B6gXJ0sAZk"      # ফেসবুক শিট আইডি
 
 # 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
@@ -61,12 +61,10 @@ def get_dynamic_password():
 # 🧾 ক্রেডেনশিয়াল জেনারেটর (ইনস্টাগ্রাম ও ফেসবুকের জন্য আলাদা নাম)
 def generate_credentials(is_fb=False):
     if is_fb:
-        # ফেসবুকের জন্য বিদেশি নাম
         first_names = ["Alice", "James", "John", "Robert", "Mary", "Patricia", "Jennifer", "Michael", "William", "David", "Elizabeth", "Barbara"]
         last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Visser"]
         username = f"{random.choice(first_names)} {random.choice(last_names)}"
     else:
-        # ইনস্টাগ্রামের জন্য ইউজারনেম
         first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
         last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
         username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
@@ -74,7 +72,7 @@ def generate_credentials(is_fb=False):
     password = get_dynamic_password()
     return username, password
 
-# 📊 গুগল শিটে ডেটা সেভ করার ফাংশন (আলাদা শিট আইডি হ্যান্ডেলিং)
+# 📊 গুগল শিটে ডেটা সেভ করার ফাংশন
 def append_to_google_sheet(sheet_id, row_data):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -134,7 +132,7 @@ def send_user_main_menu(chat_id, text_msg=None):
         
     bot.send_message(chat_id, text_msg, reply_markup=markup, parse_mode="HTML")
 
-# 📥 অ্যাকাউন্ট সাবমিট করার প্যানেল (ইনস্টাগ্রাম ও ফেসবুক অপশন)
+# 📥 অ্যাকাউন্ট সাবমিট করার প্যানেল
 def send_account_submit_panel(chat_id):
     submit_msg = (
         f"{DIVIDER_LINE}\n"
@@ -151,7 +149,7 @@ def send_account_submit_panel(chat_id):
     )
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
 
-# 💳 উইথড্রাল মেনু (২০ টাকা লিমিট এবং ৫ টাকা ফি)
+# 💳 উইথড্রাল মেনু
 def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refer=0):
     withdraw_msg = (
         f"{DIVIDER_LINE}\n"
@@ -172,7 +170,7 @@ def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refe
     markup.add(types.InlineKeyboardButton('❌ ক্যানসেল', callback_data='go_to_main_menu'))
     bot.send_message(chat_id, withdraw_msg, reply_markup=markup, parse_mode="HTML")
 
-# 🎁 রেফারেল ড্যাশবোর্ড ডিজাইন
+# 🎁 রেফারেল ড্যাশবোর্ড
 def send_refer_panel(chat_id, refer_count=0):
     bot_info = bot.get_me()
     refer_link = f"https://t.me/{bot_info.username}?start={chat_id}"
@@ -192,7 +190,7 @@ def send_refer_panel(chat_id, refer_count=0):
 # 👑 এডমিন ইনলাইন মেনু
 def get_admin_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(types.InlineKeyboardButton('📋 পেন্ডিং ভল্ট', callback_data='admin_pending'), types.InlineKeyboardButton('🔎 ইউজার ট্র্যাক', callback_data='admin_check'))
+    markup.add(types.InlineKeyboardButton('📋 পেন্ডিং ভল্ট', callback_data='ask_admin_pending'), types.InlineKeyboardButton('🔎 ইউজার ট্র্যাক', callback_data='admin_check'))
     markup.add(types.InlineKeyboardButton('✅ কাজ এপ্রুভ', callback_data='admin_approve'), types.InlineKeyboardButton('❌ কাজ রিজেক্ট', callback_data='admin_reject'))
     markup.add(types.InlineKeyboardButton('➕ ব্যালেন্স অ্যাড', callback_data='admin_add_bal'), types.InlineKeyboardButton('⚙️ ইউজার ইন্টারফেস', callback_data='go_to_main_menu'))
     return markup
@@ -244,21 +242,61 @@ def start_cmd(message):
         )
         bot.send_message(message.chat.id, join_msg, reply_markup=markup, parse_mode="HTML")
 
-# এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা
-@bot.message_handler(commands=['pending'])
-def view_pending(message):
-    if message.from_user.id != ADMIN_ID: return
-    msg = f"{EMOJI_CRYSTAL} <b>পেন্ডিং কাজের তালিকা:</b>\n{DIVIDER_LINE}\n"
+# 📋 এডমিন কমান্ড ১: পেন্ডিং কাজের লিস্ট দেখা (২ ভাগ করা হয়েছে)
+def process_view_pending(chat_id, platform_type):
+    msg = f"{EMOJI_CRYSTAL} <b>পেন্ডিং কাজের তালিকা ({platform_type}):</b>\n{DIVIDER_LINE}\n"
     has_pending = False
-    for uid, count in BOT_DATA["pending_counts"].items():
-        if count > 0:
-            msg += f"{EMOJI_USERS} আইডি: <code>{uid}</code> ➡️ পেন্ডিং কাজ: <b>{count}টি</b>\n"
+    
+    for uid, links in BOT_DATA.get("pending_links", {}).items():
+        platform_count = 0
+        for link in links:
+            if f"Type: {platform_type}" in link:
+                platform_count += 1
+                
+        if platform_count > 0:
+            msg += f"{EMOJI_USERS} আইডি: <code>{uid}</code> ➡️ পেন্ডিং কাজ: <b>{platform_count}টি</b>\n"
             has_pending = True
-    if not has_pending: msg += f"{EMOJI_LOCK} ভল্ট খালি! কোনো পেন্ডিং কাজ নেই।"
+            
+    if not has_pending: 
+        msg += f"{EMOJI_LOCK} এই প্ল্যাটফর্মে কোনো পেন্ডিং কাজ নেই।"
+        
     msg += f"\n\n{EMOJI_FIRE} <i>লিংক দেখতে:</i> <code>/check [আইডি]</code>\n{EMOJI_CALENDAR} <i>এপ্রুভ করতে:</i> <code>/approve [আইডি] [টাকা] [কয়টি]</code>"
-    bot.send_message(message.chat.id, msg, parse_mode="HTML")
+    bot.send_message(chat_id, msg, parse_mode="HTML")
 
-# 🔎 এডমিন কমান্ড ৪: লিংক চেক
+# 🔎 এডমিন কমান্ড ৪: লিংক চেক করা (ইনস্টাগ্রাম ও ফেসবুক ডাটা আলাদা প্রদর্শন এবং ওয়ান-ট্যাপ কপি সিস্টেম)
+def process_check_user_links(chat_id, target_id, platform_type):
+    links = BOT_DATA.get("pending_links", {}).get(str(target_id), [])
+    filtered_links = [link for link in links if f"Type: {platform_type}" in link]
+    
+    if not filtered_links:
+        bot.send_message(chat_id, f"{EMOJI_LOCK} ইউজার <code>{target_id}</code> এর কোনো পেন্ডিং <b>{platform_type}</b> কাজ পাওয়া যায়নি।", parse_mode="HTML")
+        return
+        
+    copy_text = ""
+    for idx, link in enumerate(filtered_links, 1):
+        if platform_type == "INSTA":
+            # ইনস্টাগ্রাম ফরম্যাট থেকে ইউজারনেম আলাদা করা
+            try:
+                uname = link.split("Uname: ")[1].split(" |")[0]
+                upass = link.split("Pass: ")[1].split(" |")[0]
+                u2fa = link.split("2FA: ")[1]
+                copy_text += f"{idx}. 👤 <code>{uname}</code> | 🔐 <code>{upass}</code> | 🔒 <code>{u2fa}</code>\n"
+            except Exception:
+                copy_text += f"{idx}. <code>{link}</code>\n"
+        else:
+            # ফেসবুক ফরম্যাট: শুধুমাত্র UID ওয়ান-ট্যাপ কপি হবে
+            try:
+                fuid = link.split("UID: ")[1].split(" |")[0]
+                fname = link.split("Name: ")[1].split(" |")[0]
+                fpass = link.split("Pass: ")[1].split(" |")[0]
+                f2fa = link.split("2FA: ")[1]
+                copy_text += f"{idx}. 🆔 <code>{fuid}</code> | 👤 {fname} | 🔐 <code>{fpass}</code> | 🔒 <code>{f2fa}</code>\n"
+            except Exception:
+                copy_text += f"{idx}. <code>{link}</code>\n"
+            
+    msg = f"{EMOJI_CRYSTAL} <b>ইউজার <code>{target_id}</code> এর পেন্ডিং ({platform_type}) ডাটা:</b>\n{DIVIDER_LINE}\n{copy_text.strip()}"
+    bot.send_message(chat_id, msg, parse_mode="HTML")
+
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -269,18 +307,14 @@ def check_user_links_cmd(message):
         return
     
     target_id = args[0]
-    links = BOT_DATA.get("pending_links", {}).get(str(target_id), [])
-    if not links:
-        bot.send_message(message.chat.id, f"{EMOJI_LOCK} ইউজার <code>{target_id}</code> এর কোনো পেন্ডিং কাজের লিংক পাওয়া যায়নি।", parse_mode="HTML")
-        return
-        
-    username_list = []
-    for link in links:
-        username_list.append(link)
-            
-    copy_text = "".join([f"{uname}\n" for uname in username_list])
-    msg = f"{EMOJI_CRYSTAL} <b>ইউজার <code>{target_id}</code> এর সকল ডাটা:</b>\n{DIVIDER_LINE}\n<code>{copy_text.strip()}</code>"
-    bot.send_message(message.chat.id, msg, parse_mode="HTML")
+    USER_DATA[message.from_user.id] = {'check_target_id': target_id}
+    
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton('🟣 Instagram Data', callback_data='check_platform_INSTA'),
+        types.InlineKeyboardButton('🔵 Facebook Data', callback_data='check_platform_FB')
+    )
+    bot.send_message(message.chat.id, f"🔮 ইউজার <code>{target_id}</code> এর কোন প্ল্যাটফর্মের ডাটা দেখতে চান?", reply_markup=markup, parse_mode="HTML")
 
 # ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা 
 @bot.message_handler(commands=['approve'])
@@ -298,6 +332,7 @@ def approve_work(message):
             if count_to_approve is None or count_to_approve >= total_pending: count_to_approve = total_pending
             
             if str_target_id in BOT_DATA["pending_links"]:
+                # প্রথম দিক থেকে নির্দিষ্ট সংখ্যক এপ্রুভড কাজ রিমুভ করা
                 BOT_DATA["pending_links"][str_target_id] = BOT_DATA["pending_links"][str_target_id][count_to_approve:]
             
             BOT_DATA["pending_counts"][str_target_id] -= count_to_approve
@@ -464,7 +499,6 @@ def handle_message(message):
     # 👤 ফেসবুক কাজের জন্য UID ভ্যালিডেশন স্টেট
     if USER_STATES.get(user_id) == 'WAITING_FOR_FB_UID':
         uid_input = text.strip()
-        # চেক করা হচ্ছে UID ১৪-১৬ সংখ্যার মধ্যে শুধু নাম্বার কিনা
         if not uid_input.isdigit() or not (14 <= len(uid_input) <= 16):
             bot.send_message(message.chat.id, "❌ <b>ভুল UID!</b> আপনার ফেসবুক অ্যাকাউন্টের সঠিক ১৪ থেকে ১৬ সংখ্যার UID-টি দিন। কম বা বেশি দিলে গ্রহণ করা হবে না।", parse_mode="HTML")
             return
@@ -553,7 +587,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন ২০৳ এবং উইথড্র ফি ৫৳):", reply_markup=cancel_markup, parse_mode="HTML")
         return
 
-    # 💳 উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন এবং ৫ টাকা ফি লজিক সেটআপ
+    # 💳 উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন
     if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
         try:
             amt = float(text)
@@ -647,7 +681,7 @@ def callback_inline(call):
         track_msg(user_id, m_gen)
         bot.answer_callback_query(call.id)
 
-    # 🔵 ফেসবুক টাস্ক স্টার্ট জেনারেটর (বিদেশি নাম সহ)
+    # 🔵 ফেসবুক টাস্ক স্টার্ট জেনারেটর
     elif call.data == 'work_fb_start_generate':
         fullname, upass = generate_credentials(is_fb=True)
         name_parts = fullname.split(" ")
@@ -709,7 +743,6 @@ def callback_inline(call):
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        # ইনস্টাগ্রাম ডেটা ইনস্টাগ্রাম শিটে সেভ হবে
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         append_to_google_sheet(INSTA_SPREADSHEET_ID, [now_time, generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name])
         
@@ -720,7 +753,7 @@ def callback_inline(call):
         USER_STATES[user_id] = None
         bot.answer_callback_query(call.id)
 
-     # 🔵 ফেসবুক ফাইনাল সাবমিট
+    # 🔵 ফেসবুক ফাইনাল সাবমিট
     elif call.data == 'work_fb_finish_done':
         fb_name = USER_DATA.get(user_id, {}).get('fb_name')
         generated_upass = USER_DATA.get(user_id, {}).get('generated_password')
@@ -740,7 +773,6 @@ def callback_inline(call):
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        # ফেসবুক ডেটা সম্পূর্ণ আলাদা ফেসবুক শিটে সেভ হবে
         now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         append_to_google_sheet(FB_SPREADSHEET_ID, [now_time, fb_uid, fb_name, generated_upass, saved_2fa, str_user_id, call.from_user.first_name])
         
@@ -767,14 +799,30 @@ def callback_inline(call):
         send_user_main_menu(call.message.chat.id, f"{DIVIDER_LINE}\n{EMOJI_CRYSTAL} <b>মেইন মেনু:</b>")
         bot.answer_callback_query(call.id)
 
-    elif call.data == 'admin_pending':
+    # 👑 নতুন এডমিন ফিচার হ্যান্ডেলার (পেন্ডিং ও চেক সিলেকশন সিস্টেম)
+    elif call.data == 'ask_admin_pending':
         bot.answer_callback_query(call.id)
-        class DummyMessage:
-            def __init__(self, uid, cid):
-                self.from_user = type('User', (object,), {'id': uid})()
-                self.chat = type('Chat', (object,), {'id': cid})()
-        view_pending(DummyMessage(user_id, call.message.chat.id))
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton('🟣 Instagram Pending', callback_data='view_pending_INSTA'),
+            types.InlineKeyboardButton('🔵 Facebook Pending', callback_data='view_pending_FB')
+        )
+        bot.send_message(call.message.chat.id, "🔮 কোন প্ল্যাটফর্মের পেন্ডিং তালিকা দেখতে চান?", reply_markup=markup, parse_mode="HTML")
         
+    elif call.data in ['view_pending_INSTA', 'view_pending_FB']:
+        bot.answer_callback_query(call.id)
+        platform = "INSTA" if call.data == 'view_pending_INSTA' else "FB"
+        process_view_pending(call.message.chat.id, platform)
+        
+    elif call.data in ['check_platform_INSTA', 'check_platform_FB']:
+        bot.answer_callback_query(call.id)
+        platform = "INSTA" if call.data == 'check_platform_INSTA' else "FB"
+        target_id = USER_DATA.get(user_id, {}).get('check_target_id')
+        if target_id:
+            process_check_user_links(call.message.chat.id, target_id, platform)
+        else:
+            bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} সেশন ওভার! আবার চেষ্টা করুন।", parse_mode="HTML")
+
     elif call.data == 'admin_check':
         USER_STATES[user_id] = 'WAITING_FOR_CHECK_ID'
         bot.send_message(call.message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার আইডি দিন:", parse_mode="HTML")
