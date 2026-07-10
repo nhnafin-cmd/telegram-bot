@@ -19,7 +19,9 @@ REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ই
 REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজের কমিশন
 
 BALANCE_FILE = "balances.json"
-SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # আপনার গুগল শিট আইডি
+# 📊 দুই কাজের জন্য দুটি আলাদা গুগল শিট আইডি (আপনার দেওয়া ফেসবুক আইডি সেট করা হয়েছে)
+INSTA_SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"  # ইনস্টাগ্রাম শিট
+FB_SPREADSHEET_ID = "1Bl6y5eHkFVjpqy6NIPCGdZBo0u6Ekod51B6gXJ0sAZk"      # আপনার ফেসবুক শিট আইডি
 
 # 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
@@ -43,36 +45,47 @@ def track_msg(user_id, message_obj):
 def clear_user_session_messages(chat_id, user_id):
     if user_id in USER_DATA and 'msg_ids' in USER_DATA[user_id]:
         for msg_id in USER_DATA[user_id]['msg_ids']:
-            try:
-                bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass
+            try: bot.delete_message(chat_id, msg_id)
+            except Exception: pass
         USER_DATA[user_id]['msg_ids'] = []
 
-# 📊 গুগল শিট কানেক্ট এবং পাসওয়ার্ড সহ ডেটা অ্যাড করার ফাংশন
-def append_to_google_sheet(username, password, two_fa_key, telegram_id, telegram_name):
+# 📆 সন্ধ্যা ৬টার লজিক অনুযায়ী ডাইনামিক পাসওয়ার্ড জেনারেটর
+def get_dynamic_password():
+    now = datetime.datetime.now()
+    if now.hour >= 18:
+        target_date = now + datetime.timedelta(days=1)
+    else:
+        target_date = now
+    return f"nagi@{target_date.strftime('%d')}"
+
+# 🧾 ক্রেডেনশিয়াল জেনারেটর (ইনস্টাগ্রাম ও ফেসবুকের জন্য আলাদা নাম)
+def generate_credentials(is_fb=False):
+    if is_fb:
+        # ফেসবুকের জন্য বিদেশি নাম
+        first_names = ["Alice", "James", "John", "Robert", "Mary", "Patricia", "Jennifer", "Michael", "William", "David", "Elizabeth", "Barbara"]
+        last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Visser"]
+        username = f"{random.choice(first_names)} {random.choice(last_names)}"
+    else:
+        # ইনস্টাগ্রামের জন্য ইউজারনেম
+        first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
+        last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
+        username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
+        
+    password = get_dynamic_password()
+    return username, password
+
+# 📊 গুগল শিটে ডেটা সেভ করার ফাংশন (আলাদা শিট আইডি হ্যান্ডেলিং)
+def append_to_google_sheet(sheet_id, row_data):
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         creds_json = os.getenv("GOOGLE_CREDS")
-        if not creds_json:
-            print("Error: GOOGLE_CREDS variable not found in Railway!")
-            return
+        if not creds_json: return
             
         creds_dict = json.loads(creds_json)
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
-        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
-        
-        all_records = sheet.get_all_values()
-        match_count = 0
-        for row in all_records:
-            if len(row) >= 5:
-                if str(row[4]).strip() == str(telegram_id).strip():
-                    match_count += 1
-        
-        work_count = match_count + 1 
-        now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([now_time, username, password, two_fa_key, str(telegram_id), telegram_name, work_count])
+        sheet = client.open_by_key(sheet_id).sheet1
+        sheet.append_row(row_data)
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
 
@@ -100,33 +113,14 @@ BOT_DATA = load_data()
 USER_STATES = {}
 USER_DATA = {}
 
-# 📆 ডাইনামিক ইউজারনেম এবং সন্ধ্যা ৬টার লজিক অনুযায়ী পাসওয়ার্ড জেনারেটর
-def generate_credentials():
-    first_names = ["anil", "kamrol", "sabbir", "rafsan", "nafin", "shohan", "tamim", "arif", "joy"]
-    last_names = ["azevedo", "khan", "ahmed", "hossain", "chy", "bd", "islam", "rahman"]
-    username = f"{random.choice(first_names)}{random.choice(last_names)}{''.join(random.choices(string.digits, k=5))}"
-    
-    now = datetime.datetime.now()
-    # যদি সন্ধ্যা ৬টা (১৮:০০) বেজে যায় বা পার হয়ে যায়, তবে পাসওয়ার্ডে আগামীকালের তারিখ বসবে
-    if now.hour >= 18:
-        target_date = now + datetime.timedelta(days=1)
-    else:
-        target_date = now
-        
-    date_str = target_date.strftime("%d")
-    password = f"nagi@{date_str}"
-    
-    return username, password
-    
-
-# 📱 ১. প্রধান মেনু কিবোর্ড ডিজাইন
+# 📱 প্রধান মেনু কিবোর্ড ডিজাইন
 def send_user_main_menu(chat_id, text_msg=None):
     if text_msg is None:
         text_msg = (
             f"{DIVIDER_LINE}\n"
-            f" {EMOJI_CRYSTAL} <b>WELCOME TO INSTA SELL BD</b> {EMOJI_CRYSTAL} \n"
+            f" {EMOJI_CRYSTAL} <b>WELCOME TO INSTA & FB SELL BD</b> {EMOJI_CRYSTAL} \n"
             f"{DIVIDER_LINE}\n"
-            f"পেশাদার ও বিশ্বস্ত উপায়ে আপনার তৈরি করা ইনস্টাগ্রাম অ্যাকাউন্ট সেল করুন আমাদের বটের মাধ্যমে।\n\n"
+            f"পেশাদার ও বিশ্বস্ত উপায়ে আপনার তৈরি করা অ্যাকাউন্ট সেল করুন আমাদের বটের মাধ্যমে।\n\n"
             f"{EMOJI_FIRE} <b>নিচের মেনু থেকে আপনার কাঙ্ক্ষিত অপশনটি বেছে নিন:</b>"
         )
         
@@ -140,26 +134,28 @@ def send_user_main_menu(chat_id, text_msg=None):
         
     bot.send_message(chat_id, text_msg, reply_markup=markup, parse_mode="HTML")
 
-# 📥 ২. অ্যাকাউন্ট সাবমিট করার ইউনিক প্যানেল
+# 📥 অ্যাকাউন্ট সাবমিট করার প্যানেল (ইনস্টাগ্রাম ও ফেসবুক অপশন)
 def send_account_submit_panel(chat_id):
     submit_msg = (
         f"{DIVIDER_LINE}\n"
         f" {EMOJI_FIRE} <b>ACCOUNT SUBMISSION</b> {EMOJI_FIRE} \n"
         f"{DIVIDER_LINE}\n"
         f"⚠️ <b>সতর্কতা:</b> অ্যাকাউন্ট জমা দেওয়ার আগে অবশ্যই পাসওয়ার্ড এবং ইমেইল সঠিক আছে কিনা চেক করে নিন।\n\n"
-        f"<b>টাস্ক টাইপ:</b> ইনস্টাগ্রাম 2FA (৩.০০ BDT)\n\n"
-        f"{EMOJI_LOCK} কাজ শুরু করতে নিচের বাটনে ক্লিক করুন:"
+        f"📌 <b>নিচে থেকে আপনি যে অ্যাকাউন্টটি জমা দিতে চান সেটি সিলেক্ট করুন:</b>"
     )
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton('🟣 ইনস্টাগ্রাম টাস্ক স্টার্ট', callback_data='work_insta_start_generate'))
-    markup.add(types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu'))
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton('🟣 ইনস্টাগ্রাম টাস্ক (৩.০০ BDT)', callback_data='work_insta_start_generate'),
+        types.InlineKeyboardButton('🔵 ফেসবুক ২এফএ টাস্ক (৪.০০ BDT)', callback_data='work_fb_start_generate'),
+        types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu')
+    )
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
 
-# 💳 ৩. ইউনিক ও স্টাইলিশ উইথড্রাল মেনু (২০ টাকা লিমিট এবং ৫ টাকা ফি টেক্সট সেট করা)
+# 💳 উইথড্রাল মেনু (২০ টাকা লিমিট এবং ৫ টাকা ফি)
 def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refer=0):
     withdraw_msg = (
         f"{DIVIDER_LINE}\n"
-        f" {EMOJI_CRYSTAL} <b>INSTA SELL WITHDRAWAL</b> {EMOJI_CRYSTAL} \n"
+        f" {EMOJI_CRYSTAL} <b>ACCOUNT WITHDRAWAL</b> {EMOJI_CRYSTAL} \n"
         f"{DIVIDER_LINE}\n\n"
         f"{EMOJI_FIRE} <b>Total Account Sold:</b> <code>{total_submitted_acc} 🆔</code>\n"
         f"{DIVIDER_LINE}\n"
@@ -176,7 +172,7 @@ def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refe
     markup.add(types.InlineKeyboardButton('❌ ক্যানসেল', callback_data='go_to_main_menu'))
     bot.send_message(chat_id, withdraw_msg, reply_markup=markup, parse_mode="HTML")
 
-# 🎁 ৪. রেফারেল ড্যাশবোর্ড ডিজাইন
+# 🎁 রেফারেল ড্যাশবোর্ড ডিজাইন
 def send_refer_panel(chat_id, refer_count=0):
     bot_info = bot.get_me()
     refer_link = f"https://t.me/{bot_info.username}?start={chat_id}"
@@ -189,7 +185,7 @@ def send_refer_panel(chat_id, refer_count=0):
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CRYSTAL} <b>আপনার রেফারেল লিংক:</b>\n<code>{refer_link}</code>\n\n"
         f"💡 <i>নিয়মাবলী:</i> আপনার লিংকে কেউ জয়েন করলে সাথে সাথে <b>২ টাকা</b> বোনাস পাবেন। "
-        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
+        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
     )
     bot.send_message(chat_id, refer_msg, parse_mode="HTML")
 
@@ -280,15 +276,10 @@ def check_user_links_cmd(message):
         
     username_list = []
     for link in links:
-        try:
-            if "|" in link and "Uname:" in link:
-                parts = link.split("|")
-                username_list.append(parts[0].replace("Uname:", "").strip())
-            else: username_list.append(link)
-        except Exception: username_list.append(link)
+        username_list.append(link)
             
     copy_text = "".join([f"{uname}\n" for uname in username_list])
-    msg = f"{EMOJI_CRYSTAL} <b>ইউজার <code>{target_id}</code> এর সকল ইউজারনেম:</b>\n{DIVIDER_LINE}\n<code>{copy_text.strip()}</code>"
+    msg = f"{EMOJI_CRYSTAL} <b>ইউজার <code>{target_id}</code> এর সকল ডাটা:</b>\n{DIVIDER_LINE}\n<code>{copy_text.strip()}</code>"
     bot.send_message(message.chat.id, msg, parse_mode="HTML")
 
 # ✅ এডমিন কমান্ড ২: কাজ এপ্রুভ করা 
@@ -400,7 +391,7 @@ def handle_message(message):
 
     if not check_joined(user_id): return
 
-    if text in ['❌ বাতিল করুন', '🔙 ফিরে যান']:
+    if text in ['❌ বাতিল করুন', '🔙 ফিরে যান', '❌ বাতিল']:
         USER_STATES[user_id] = None
         clear_user_session_messages(message.chat.id, user_id)
         if user_id in USER_DATA: del USER_DATA[user_id]
@@ -470,7 +461,54 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
         return
 
-    # 📋 ২এফএ কি সাবমিট করার প্রসেস
+    # 👤 ফেসবুক কাজের জন্য UID ভ্যালিডেশন স্টেট
+    if USER_STATES.get(user_id) == 'WAITING_FOR_FB_UID':
+        uid_input = text.strip()
+        # চেক করা হচ্ছে UID ১৪-১৬ সংখ্যার মধ্যে শুধু নাম্বার কিনা
+        if not uid_input.isdigit() or not (14 <= len(uid_input) <= 16):
+            bot.send_message(message.chat.id, "❌ <b>ভুল UID!</b> আপনার ফেসবুক অ্যাকাউন্টের সঠিক ১৪ থেকে ১৬ সংখ্যার UID-টি দিন। কম বা বেশি দিলে গ্রহণ করা হবে না।", parse_mode="HTML")
+            return
+        
+        if user_id not in USER_DATA: USER_DATA[user_id] = {}
+        USER_DATA[user_id]['fb_uid'] = uid_input
+        
+        USER_STATES[user_id] = 'WAITING_FOR_FB_2FA'
+        m_2fa = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>আপনার ফেসবুক অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", parse_mode="HTML")
+        track_msg(user_id, m_2fa)
+        return
+
+    # 🔑 ফেসবুক ২এফএ কী সাবমিট প্রসেস
+    if USER_STATES.get(user_id) == 'WAITING_FOR_FB_2FA':
+        user_input = text.strip().replace(" ", "").upper()
+        try:
+            missing_padding = len(user_input) % 8
+            if missing_padding: user_input += '=' * (8 - missing_padding)
+            totp = pyotp.TOTP(user_input)
+            code = totp.now()
+            
+            USER_DATA[user_id]['2fa_key'] = user_input
+            
+            m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} ফেসবুক অ্যাকাউন্ট সম্পূর্ণ ভেরিফাই হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
+            m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
+            
+            finish_markup = types.InlineKeyboardMarkup()
+            finish_markup.add(types.InlineKeyboardButton('✅ ফেসবুক অ্যাকাউন্ট তৈরি শেষ', callback_data='work_fb_finish_done'))
+            finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
+            m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
+            
+            track_msg(user_id, message)
+            track_msg(user_id, m1)
+            track_msg(user_id, m2)
+            track_msg(user_id, m3)
+            
+            USER_STATES[user_id] = 'WAITING_FOR_FINISH'
+        except Exception:
+            bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
+            send_user_main_menu(message.chat.id)
+            USER_STATES[user_id] = None
+        return
+
+    # 📋 ইনস্টাগ্রাম ২এফএ কি সাবমিট করার প্রসেস
     if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
         user_input = text.strip().replace(" ", "").upper()
         try:
@@ -490,7 +528,6 @@ def handle_message(message):
             finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
             m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
             
-            # ডিলিট করার জন্য মেসেজগুলো ট্র্যাকিং লিস্টে যুক্ত করা হচ্ছে
             track_msg(user_id, message)
             track_msg(user_id, m1)
             track_msg(user_id, m2)
@@ -522,9 +559,9 @@ def handle_message(message):
             amt = float(text)
             saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
             method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
-            min_amt = 20.0  # সর্বনিম্ন উইথড্র ২০ টাকা
-            fee_amt = 5.0   # অতিরিক্ত ৫ টাকা উইথড্র ফি
-            total_deduction = amt + fee_amt # ইউজার ব্যালেন্স থেকে মোট যত কাটা হবে
+            min_amt = 20.0  
+            fee_amt = 5.0   
+            total_deduction = amt + fee_amt 
             
             if amt < min_amt:
                 bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
@@ -533,7 +570,6 @@ def handle_message(message):
                 if user_bal < total_deduction:
                     bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 ৫৳ উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>\n📌 আপনার বর্তমান ব্যালেন্স: {user_bal:.2f} BDT", parse_mode="HTML")
                 else:
-                    # ৫ টাকা ফিসহ ব্যালেন্স কাটা হলো
                     BOT_DATA["balances"][str_user_id] -= total_deduction
                     save_data(BOT_DATA)
                     num = USER_DATA.get(user_id, {}).get('number', 'N/A')
@@ -579,7 +615,7 @@ def callback_inline(call):
             
             try: bot.delete_message(call.message.chat.id, call.message.message_id)
             except Exception: pass
-            bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} স্বাগতম আমাদের Official Instagram Sell BD Bot এ 🫠🤗", parse_mode="HTML")
+            bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} স্বাগতম আমাদের Official Sell BD Bot এ 🫠🤗", parse_mode="HTML")
             send_user_main_menu(call.message.chat.id)
         else:
             bot.answer_callback_query(call.id, "⚠️ আপনি এখনও চ্যানেলে জয়েন করেননি!", show_alert=True)
@@ -587,15 +623,17 @@ def callback_inline(call):
 
     if not check_joined(user_id): return
         
+    # 🟣 ইনস্টাগ্রাম টাস্ক স্টার্ট জেনারেটর
     if call.data == 'work_insta_start_generate':
-        uname, upass = generate_credentials()
+        uname, upass = generate_credentials(is_fb=False)
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id]['generated_username'] = uname
         USER_DATA[user_id]['generated_password'] = upass
+        USER_DATA[user_id]['task_type'] = 'INSTA'
         
         msg = (
             f"{DIVIDER_LINE}\n"
-            f"🧾 <b>অ্যাকাউন্ট ক্রেডেনশিয়াল:</b>\n"
+            f"🧾 <b>ইনস্টাগ্রাম ক্রেডেনশিয়াল:</b>\n"
             f"{DIVIDER_LINE}\n"
             f"👤 Username: <code>{uname}</code>\n"
             f"🔐 Password: <code>{upass}</code>\n"
@@ -608,6 +646,41 @@ def callback_inline(call):
         m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
         track_msg(user_id, m_gen)
         bot.answer_callback_query(call.id)
+
+    # 🔵 ফেসবুক টাস্ক স্টার্ট জেনারেটর (বিদেশি নাম সহ)
+    elif call.data == 'work_fb_start_generate':
+        fullname, upass = generate_credentials(is_fb=True)
+        name_parts = fullname.split(" ")
+        first_n = name_parts[0]
+        last_n = name_parts[1]
+        
+        if user_id not in USER_DATA: USER_DATA[user_id] = {}
+        USER_DATA[user_id]['fb_name'] = fullname
+        USER_DATA[user_id]['generated_password'] = upass
+        USER_DATA[user_id]['task_type'] = 'FACEBOOK'
+        
+        msg = (
+            f"👤 First name: <code>{first_n}</code>\n"
+            f"👤 Last name: <code>{last_n}</code>\n"
+            f"🔐 Password: <code>{upass}</code>\n\n"
+            f"📱 উপরের তথ্য দিয়ে অ্যাকাউন্ট খুলে নিচে <b>Send UID</b> বাটনে চাপ দিন😁"
+        )
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("Send UID", callback_data="open_fb_uid_input"),
+            types.InlineKeyboardButton("❓ কিভাবে কাজ করব", url=f"https://t.me/{CHANNEL_USERNAME[1:]}"),
+            types.InlineKeyboardButton("❌ বাতিল", callback_data="go_to_main_menu")
+        )
+        m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
+        track_msg(user_id, m_gen)
+        bot.answer_callback_query(call.id)
+
+    elif call.data == "open_fb_uid_input":
+        USER_STATES[user_id] = 'WAITING_FOR_FB_UID'
+        cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
+        bot.send_message(call.message.chat.id, "📝 আপনার ফেসবুক অ্যাকাউন্টের ১৪ থেকে ১৬ সংখ্যার UID-টি দিন:", reply_markup=cancel_markup, parse_mode="HTML")
+        bot.answer_callback_query(call.id)
         
     elif call.data == "open_2fa_input":
         USER_STATES[user_id] = 'WAITING_FOR_2FA_KEY'
@@ -617,6 +690,7 @@ def callback_inline(call):
         track_msg(user_id, m_input)
         bot.answer_callback_query(call.id)
         
+    # 🟣 ইনস্টাগ্রাম ফাইনাল সাবমিট
     elif call.data == 'work_finish_done':
         generated_uname = USER_DATA.get(user_id, {}).get('generated_username')
         generated_upass = USER_DATA.get(user_id, {}).get('generated_password')
@@ -628,23 +702,50 @@ def callback_inline(call):
             send_user_main_menu(call.message.chat.id)
             return
 
-        if "pending_links" not in BOT_DATA: BOT_DATA["pending_links"] = {}
         if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
         
-        work_details = f"Uname: {generated_uname} | Pass: {generated_upass} | 2FA: {saved_2fa}"
+        work_details = f"Type: INSTA | Uname: {generated_uname} | Pass: {generated_upass} | 2FA: {saved_2fa}"
         BOT_DATA["pending_links"][str_user_id].append(work_details)
         BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
         save_data(BOT_DATA)
         
-        append_to_google_sheet(generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name)
+        # ইনস্টাগ্রাম ডেটা ইনস্টাগ্রাম শিটে সেভ হবে
+        now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        append_to_google_sheet(INSTA_SPREADSHEET_ID, [now_time, generated_uname, generated_upass, saved_2fa, str_user_id, call.from_user.first_name])
         
         clear_user_session_messages(call.message.chat.id, user_id)
+        bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} <b>ইনস্টাগ্রাম অ্যাকাউন্টটি সফলভাবে সাবমিট করা হয়েছে!</b>", parse_mode="HTML")
+        send_user_main_menu(call.message.chat.id)
+        if user_id in USER_DATA: del USER_DATA[user_id]
+        USER_STATES[user_id] = None
+        bot.answer_callback_query(call.id)
+
+     # 🔵 ফেসবুক ফাইনাল সাবমিট
+    elif call.data == 'work_fb_finish_done':
+        fb_name = USER_DATA.get(user_id, {}).get('fb_name')
+        generated_upass = USER_DATA.get(user_id, {}).get('generated_password')
+        fb_uid = USER_DATA.get(user_id, {}).get('fb_uid')
+        saved_2fa = USER_DATA.get(user_id, {}).get('2fa_key')
         
-        success_done_msg = (
-            f"{EMOJI_CRYSTAL} <b>কাজটি সফলভাবে সাবমিট করা হয়েছে!</b>\n{DIVIDER_LINE}\n"
-            f"আপনার অ্যাকাউন্ট ডাটা গুগল শিটে সংরক্ষিত হয়েছে। এডমিন এটি ভেরিফাই করে ব্যালেন্স দিয়ে দেবে।"
-        )
-        bot.send_message(call.message.chat.id, success_done_msg, parse_mode="HTML")
+        if not fb_uid or not saved_2fa:
+            clear_user_session_messages(call.message.chat.id, user_id)
+            bot.send_message(call.message.chat.id, f"{EMOJI_LOCK} ডাটা ত্রুটি! আবার চেষ্টা করুন।", parse_mode="HTML")
+            send_user_main_menu(call.message.chat.id)
+            return
+
+        if str_user_id not in BOT_DATA["pending_links"]: BOT_DATA["pending_links"][str_user_id] = []
+        
+        work_details = f"Type: FB | UID: {fb_uid} | Name: {fb_name} | Pass: {generated_upass} | 2FA: {saved_2fa}"
+        BOT_DATA["pending_links"][str_user_id].append(work_details)
+        BOT_DATA["pending_counts"][str_user_id] = BOT_DATA["pending_counts"].get(str_user_id, 0) + 1
+        save_data(BOT_DATA)
+        
+        # ফেসবুক ডেটা সম্পূর্ণ আলাদা ফেসবুক শিটে সেভ হবে
+        now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        append_to_google_sheet(FB_SPREADSHEET_ID, [now_time, fb_uid, fb_name, generated_upass, saved_2fa, str_user_id, call.from_user.first_name])
+        
+        clear_user_session_messages(call.message.chat.id, user_id)
+        bot.send_message(call.message.chat.id, f"{EMOJI_CRYSTAL} <b>ফেসবুক অ্যাকাউন্টটি সফলভাবে আলাদা ডাটাবেজে সাবমিট করা হয়েছে!</b>", parse_mode="HTML")
         send_user_main_menu(call.message.chat.id)
         if user_id in USER_DATA: del USER_DATA[user_id]
         USER_STATES[user_id] = None
