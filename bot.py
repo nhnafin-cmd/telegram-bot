@@ -9,14 +9,21 @@ from telebot import types
 import gspread
 from google.oauth2.service_account import Credentials
 
+# ⚙️ SUPER CONFIGURATION PANEL (এডমিন প্যানেল কনফিগারেশন)
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 CHANNEL_USERNAME = "@OfficialInstagramSellBD"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
+
+# 💰 কাজের রেট ও বোনাস সেটআপ
 REFER_BONUS = 2.0      # প্রতি রেফারে ২ টাকা ইনস্ট্যান্ট বোনাস
 REFER_COMMISSION_PERCENT = 0.10  # ১০% লাইফটাইম কাজের কমিশন
+INSTA_RATE = 3.00      # ইনস্টাগ্রাম অ্যাকাউন্টের দাম
+FB_RATE = 4.00         # ফেসবুক অ্যাকাউন্টের দাম
+MIN_WITHDRAW = 20.0    # সর্বনিম্ন উইথড্র
+WITHDRAW_FEE = 5.0     # উইথড্র ফি
 
 BALANCE_FILE = "balances.json"
 # 📊 গুগল শিট আইডি
@@ -32,6 +39,9 @@ EMOJI_FIRE    = "<tg-emoji emoji-id='5334763399299506604'>🔥</tg-emoji>🔥"
 EMOJI_USERS   = "<tg-emoji emoji-id='5420145051336485498'>👥</tg-emoji>👥"
 EMOJI_CALENDAR= "<tg-emoji emoji-id='5352585194295564660'>📅</tg-emoji>📅"
 EMOJI_LOCK    = "<tg-emoji emoji-id='5337255927735163754'>🔒</tg-emoji>🔒"
+
+USER_STATES = {}
+USER_DATA = {}
 
 # 🔄 মেসেজ ট্র্যাক এবং অটো-ডিলিট করার ফাংশনসমূহ
 def track_msg(user_id, message_obj):
@@ -87,7 +97,7 @@ def append_to_google_sheet(sheet_id, row_data):
     except Exception as e:
         print(f"Error updating Google Sheet: {e}")
 
-# ডাটা লোড এবং সেভ করার সিস্টেম
+# ডাটা লোড এবং সেভ করার সিস্টেম (নিশ্চিত করে ডাটা লস হবে না)
 def load_data():
     default_data = {
         "balances": {}, "pending_counts": {}, "pending_links": {}, 
@@ -108,8 +118,6 @@ def save_data(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 BOT_DATA = load_data()
-USER_STATES = {}
-USER_DATA = {}
 
 # 📱 প্রধান মেনু কিবোর্ড ডিজাইন
 def send_user_main_menu(chat_id, text_msg=None):
@@ -143,8 +151,8 @@ def send_account_submit_panel(chat_id):
     )
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton('🟣 ইনস্টাগ্রাম টাস্ক (৩.০০ BDT)', callback_data='work_insta_start_generate'),
-        types.InlineKeyboardButton('🔵 ফেসবুক ২এফএ টাস্ক (৪.০০ BDT)', callback_data='work_fb_start_generate'),
+        types.InlineKeyboardButton(f'🟣 ইনস্টাগ্রাম টাস্ক ({INSTA_RATE:.2f} BDT)', callback_data='work_insta_start_generate'),
+        types.InlineKeyboardButton(f'🔵 ফেসবুক ২এফএ টাস্ক ({FB_RATE:.2f} BDT)', callback_data='work_fb_start_generate'),
         types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu')
     )
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
@@ -159,10 +167,10 @@ def send_withdrawal_menu(chat_id, balance=0.0, total_submitted_acc=0, total_refe
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_USERS} <b>Total Refer:</b> <code>{total_refer} জন</code>\n"
         f"{DIVIDER_LINE}\n"
-        f"{EMOJI_CALENDAR} <b>Your Balance:</b> <code>{balance} ৳</code>\n"
+        f"{EMOJI_CALENDAR} <b>Your Balance:</b> <code>{balance:.2f} ৳</code>\n"
         f"{DIVIDER_LINE}\n"
-        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>২০ ৳</code>\n"
-        f"⚠️ <b>উইথড্র চার্জ / ফি:</b> <code>৫ ৳ (প্রতি উইথড্রতে কাটবে)</code>\n\n"
+        f"{EMOJI_LOCK} <b>Minimum Withdraw:</b> <code>{MIN_WITHDRAW:.0f} ৳</code>\n"
+        f"⚠️ <b>উইথড্র চার্জ / ফি:</b> <code>{WITHDRAW_FEE:.0f} ৳ (প্রতি উইথড্রতে কাটবে)</code>\n\n"
         "📌 <b>পেমেন্ট মেথড সিলেক্ট করুন:</b>"
     )
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -182,8 +190,8 @@ def send_refer_panel(chat_id, refer_count=0):
         f"{EMOJI_FIRE} <b>মোট সফল রেফার:</b> <code>{refer_count} জন</code>\n"
         f"{DIVIDER_LINE}\n"
         f"{EMOJI_CRYSTAL} <b>আপনার রেফারেল লিংক:</b>\n<code>{refer_link}</code>\n\n"
-        f"💡 <i>নিয়মাবলী:</i> আপনার লিংকে কেউ জয়েন করলে সাথে সাথে <b>২ টাকা</b> বোনাস পাবেন। "
-        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>১০% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
+        f"💡 <i>নিয়মাবলী:</i> আপনার লিংকে কেউ জয়েন করলে সাথে সাথে <b>{REFER_BONUS:.0f} টাকা</b> বোনাস পাবেন। "
+        f"তাছাড়া সে আজীবন যতগুলো কাজ করবে তার প্রতিটির মূল্যের <b>{REFER_COMMISSION_PERCENT*100:.0f}% কমিশন</b> আপনার অ্যাকাউন্টে অটোমেটিক যোগ হবে!"
     )
     bot.send_message(chat_id, refer_msg, parse_mode="HTML")
 
@@ -287,7 +295,6 @@ def process_check_user_links(chat_id, target_id, platform_type):
             except Exception:
                 raw_list += f"{link}\n"
             
-    # পুরো লিস্টটাকে একটা মাত্র <code> ট্যাগের ভেতর রাখা হয়েছে যেন এক ক্লিকেই সব কপি হয়
     msg = (
         f"{EMOJI_CRYSTAL} <b>ইউজার {target_id} এর সকল {'ইউজারনেম' if platform_type == 'INSTA' else 'ইউআইডি'}:</b>\n"
         f"👇 (নিচের বক্সে চাপ দিলে একবারে সব কপি হবে)\n\n"
@@ -295,7 +302,6 @@ def process_check_user_links(chat_id, target_id, platform_type):
     )
     bot.send_message(chat_id, msg, parse_mode="HTML")
             
-    
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -304,7 +310,7 @@ def check_user_links_cmd(message):
         USER_STATES[message.from_user.id] = 'WAITING_FOR_CHECK_ID'
         bot.send_message(message.chat.id, f"{EMOJI_FIRE} যে ইউজারের লিংক দেখতে চান তার টেলিগ্রাম আইডি-টি পাঠান:", parse_mode="HTML")
         return
-    
+        
     target_id = args[0]
     USER_DATA[message.from_user.id] = {'check_target_id': target_id}
     
@@ -331,7 +337,6 @@ def approve_work(message):
             if count_to_approve is None or count_to_approve >= total_pending: count_to_approve = total_pending
             
             if str_target_id in BOT_DATA["pending_links"]:
-                # প্রথম দিক থেকে নির্দিষ্ট সংখ্যক এপ্রুভড কাজ রিমুভ করা
                 BOT_DATA["pending_links"][str_target_id] = BOT_DATA["pending_links"][str_target_id][count_to_approve:]
             
             BOT_DATA["pending_counts"][str_target_id] -= count_to_approve
@@ -583,7 +588,7 @@ def handle_message(message):
         
         cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন ২০৳ এবং উইথড্র ফি ৫৳):", reply_markup=cancel_markup, parse_mode="HTML")
+        bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {MIN_WITHDRAW:.0f}৳ এবং উইথড্র ফি {WITHDRAW_FEE:.0f}৳):", reply_markup=cancel_markup, parse_mode="HTML")
         return
 
     # 💳 উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন
@@ -592,35 +597,32 @@ def handle_message(message):
             amt = float(text)
             saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
             method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
-            min_amt = 20.0  
-            fee_amt = 5.0   
-            total_deduction = amt + fee_amt 
+            total_deduction = amt + WITHDRAW_FEE 
             
-            if amt < min_amt:
-                bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {min_amt:.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
+            if amt < MIN_WITHDRAW:
+                bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {MIN_WITHDRAW:.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
             else:
                 user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
                 if user_bal < total_deduction:
-                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 ৫৳ উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>\n📌 আপনার বর্তমান ব্যালেন্স: {user_bal:.2f} BDT", parse_mode="HTML")
+                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 {WITHDRAW_FEE:.0f}৳ উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>\n📌 আপনার বর্তমান ব্যালেন্স: {user_bal:.2f} BDT", parse_mode="HTML")
                 else:
                     BOT_DATA["balances"][str_user_id] -= total_deduction
                     save_data(BOT_DATA)
                     num = USER_DATA.get(user_id, {}).get('number', 'N/A')
-                    
                     withdraw_group_msg = (
-                        f"{EMOJI_CRYSTAL} <b>নতুন উইথड्र রিকোয়েস্ট</b>\n{DIVIDER_LINE}\n"
+                        f"{EMOJI_CRYSTAL} <b>নতুন উইথড্র রিকোয়েস্ট</b>\n{DIVIDER_LINE}\n"
                         f"👤 নাম: {message.from_user.first_name}\n"
                         f"🆔 আইডি: <code>{user_id}</code>\n"
                         f"💳 মাধ্যম: <b>{method_name}</b>\n"
                         f"📱 নাম্বার: <code>{num}</code>\n"
                         f"💰 ইউজার পাবে: <b>{amt:.2f} BDT</b>\n"
-                        f"⛽ উইথড্র ফি কাটা হয়েছে: <b>{fee_amt:.2f} BDT</b>\n"
+                        f"⛽ উইথড্র ফি কাটা হয়েছে: <b>{WITHDRAW_FEE:.2f} BDT</b>\n"
                         f"📊 মোট কাটা হয়েছে: <b>{total_deduction:.2f} BDT</b>"
                     )
                     try: bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="HTML")
                     except Exception: pass
                     
-                    bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!\n📉 (৫৳ ফি সহ মোট {total_deduction:.2f}৳ কাটা হয়েছে)\n🔥 বর্তমান মূল ব্যালেন্স: {BOT_DATA['balances'][str_user_id]:.2f} BDT", parse_mode="HTML")
+                    bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!\n📉 ({WITHDRAW_FEE:.0f}৳ ফি সহ মোট {total_deduction:.2f}৳ কাটা হয়েছে)\n🔥 বর্তমান মূল ব্যালেন্স: {BOT_DATA['balances'][str_user_id]:.2f} BDT", parse_mode="HTML")
         except ValueError:
             bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল অ্যামাউন্ট! শুধুমাত্র সংখ্যায় টাকার পরিমাণ লিখুন।", parse_mode="HTML")
         
