@@ -263,7 +263,7 @@ def process_view_pending(chat_id, platform_type):
     msg += f"\n\n{EMOJI_FIRE} <i>লিংক দেখতে:</i> <code>/check [আইডি]</code>\n{EMOJI_CALENDAR} <i>এপ্রুভ করতে:</i> <code>/approve [আইডি] [টাকা] [কয়টি]</code>"
     bot.send_message(chat_id, msg, parse_mode="HTML")
 
-# 🔎 এডমিন কমান্ড ৪: স্ক্রিনশট ১-এর মতো ওয়ান-ট্যাপ সিঙ্গেল ক্লিকে ফ্রেশ কপি সিস্টেম
+# 🔎 এডমিন কমান্ড ৪: এক ক্লিকে পুরো লিস্ট একসাথে কপি করার সিস্টেম
 def process_check_user_links(chat_id, target_id, platform_type):
     links = BOT_DATA.get("pending_links", {}).get(str(target_id), [])
     filtered_links = [link for link in links if f"Type: {platform_type}" in link]
@@ -272,25 +272,29 @@ def process_check_user_links(chat_id, target_id, platform_type):
         bot.send_message(chat_id, f"{EMOJI_LOCK} ইউজার <code>{target_id}</code> এর কোনো পেন্ডিং <b>{platform_type}</b> কাজ পাওয়া যায়নি।", parse_mode="HTML")
         return
         
-    copy_text = ""
+    raw_list = ""
     for link in filtered_links:
         if platform_type == "INSTA":
             try:
-                # ফুল ডেটা থেকে শুধু ইউজারনেম আলাদা করে টাচ-কপি মোডে নেওয়া হচ্ছে
                 uname = link.split("Uname: ")[1].split(" |")[0]
-                copy_text += f"<code>{uname}</code>\n"
+                raw_list += f"{uname}\n"
             except Exception:
-                copy_text += f"<code>{link}</code>\n"
+                raw_list += f"{link}\n"
         else:
             try:
-                # ফুল ডেটা থেকে শুধু ফেসবুক UID আলাদা করে টাচ-কপি মোডে নেওয়া হচ্ছে
                 fuid = link.split("UID: ")[1].split(" |")[0]
-                copy_text += f"<code>{fuid}</code>\n"
+                raw_list += f"{fuid}\n"
             except Exception:
-                copy_text += f"<code>{link}</code>\n"
+                raw_list += f"{link}\n"
             
-    msg = f"{EMOJI_CRYSTAL} <b>ইউজার {target_id} এর সকল {'ইউজারনেম' if platform_type == 'INSTA' else 'ইউআইডি'}:</b>\n\n{copy_text.strip()}"
+    # পুরো লিস্টটাকে একটা মাত্র <code> ট্যাগের ভেতর রাখা হয়েছে যেন এক ক্লিকেই সব কপি হয়
+    msg = (
+        f"{EMOJI_CRYSTAL} <b>ইউজার {target_id} এর সকল {'ইউজারনেম' if platform_type == 'INSTA' else 'ইউআইডি'}:</b>\n"
+        f"👇 (নিচের বক্সে চাপ দিলে একবারে সব কপি হবে)\n\n"
+        f"<code>{raw_list.strip()}</code>"
+    )
     bot.send_message(chat_id, msg, parse_mode="HTML")
+            
     
 @bot.message_handler(commands=['check'])
 def check_user_links_cmd(message):
