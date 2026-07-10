@@ -380,50 +380,145 @@ def handle_message(message):
         send_user_main_menu(message.chat.id)
         return
 
-    # --- 👑 সুপার এডমিন প্যানেল লজিক পার্ট ---
-    if user_id == ADMIN_ID and USER_STATES.get(user_id):
+    # 👤 [ফিক্সড লজিক]: এডমিন প্যানেলের আগেই ইউজারের অ্যাকাউন্ট সাবমিশন স্টেটগুলো আগে চেক করা হচ্ছে
+    if USER_STATES.get(user_id):
         current_state = USER_STATES[user_id]
         
-        # ১. ইউজারকে সরাসরি মেসেজ পাঠানোর লজিক
-        if current_state == 'WAITING_FOR_MSG_USER_ID':
-            USER_DATA[user_id] = {'msg_target_id': text.strip()}
-            USER_STATES[user_id] = 'WAITING_FOR_MSG_TEXT'
-            bot.send_message(message.chat.id, f"📝 এবার ইউজারকে যে **মেসেজটি** পাঠাতে চান তা লিখে পাঠান:", parse_mode="HTML")
+        # ফেসবুক কাজের জন্য UID ভ্যালিডেশন স্টেট
+        if current_state == 'WAITING_FOR_FB_UID':
+            uid_input = text.strip()
+            if not uid_input.isdigit() or not (14 <= len(uid_input) <= 16):
+                bot.send_message(message.chat.id, "❌ <b>ভুল UID!</b> আপনার ফেসবুক অ্যাকাউন্টের সঠিক ১৪ থেকে ১৬ সংখ্যার UID-টি দিন।", parse_mode="HTML")
+                return
+            if user_id not in USER_DATA: USER_DATA[user_id] = {}
+            USER_DATA[user_id]['fb_uid'] = uid_input
+            USER_STATES[user_id] = 'WAITING_FOR_FB_2FA'
+            m_2fa = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>আপনার ফেসবুক অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", parse_mode="HTML")
+            track_msg(user_id, m_2fa)
+            return
+
+        # ফেসবুক ২এফএ কী সাবমিট প্রসেস
+        elif current_state == 'WAITING_FOR_FB_2FA':
+            user_input = text.strip().replace(" ", "").upper()
+            try:
+                missing_padding = len(user_input) % 8
+                if missing_padding: user_input += '=' * (8 - missing_padding)
+                totp = pyotp.TOTP(user_input)
+                code = totp.now()
+                USER_DATA[user_id]['2fa_key'] = user_input
+                m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} ফেসবুক অ্যাকাউন্ট সম্পূর্ণ ভেরিফাই হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
+                m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
+                finish_markup = types.InlineKeyboardMarkup()
+                finish_markup.add(types.InlineKeyboardButton('✅ ফেসবুক অ্যাকাউন্ট তৈরি শেষ', callback_data='work_fb_finish_done'))
+                finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
+                m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
+                track_msg(user_id, message); track_msg(user_id, m1); track_msg(user_id, m2); track_msg(user_id, m3)
+                USER_STATES[user_id] = 'WAITING_FOR_FINISH'
+            except Exception:
+                bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
+                send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
+            return
+
+        # ইনস্টাগ্রাম ২এফএ কি সাবমিট করার প্রসেস
+        elif current_state == 'WAITING_FOR_2FA_KEY':
+            user_input = text.strip().replace(" ", "").upper()
+            try:
+                missing_padding = len(user_input) % 8
+                if missing_padding: user_input += '=' * (8 - missing_padding)
+                totp = pyotp.TOTP(user_input)
+                code = totp.now()
+                if user_id not in USER_DATA: USER_DATA[user_id] = {}
+                USER_DATA[user_id]['2fa_key'] = user_input
+                m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} অ্যাকাউন্ট সম্পূর্ণ রেডি হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
+                m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
+                finish_markup = types.InlineKeyboardMarkup()
+                finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট তৈরি শেষ', callback_data='work_finish_done'))
+                finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
+                m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
+                track_msg(user_id, message); track_msg(user_id, m1); track_msg(user_id, m2); track_msg(user_id, m3)
+                USER_STATES[user_id] = 'WAITING_FOR_FINISH'
+            except Exception:
+                bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
+                send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
             return
             
-        elif current_state == 'WAITING_FOR_MSG_TEXT':
-            USER_STATES[user_id] = None
-            target = USER_DATA.get(user_id, {}).get('msg_target_id')
+        elif current_state in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
+            if user_id not in USER_DATA: USER_DATA[user_id] = {}
+            USER_DATA[user_id]['number'] = text
+            USER_DATA[user_id]['method'] = "BKASH" if current_state == 'WAITING_FOR_BKASH_NUMBER' else "NAGAD"
+            USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
+            cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
+            bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {get_cfg('MIN_WITHDRAW'):.0f}৳ এবং উইথড্র ফি {get_cfg('WITHDRAW_FEE'):.0f}৳):", reply_markup=cancel_markup, parse_mode="HTML")
+            return
+
+        # উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন
+        elif current_state == 'WAITING_FOR_AMOUNT':
             try:
-                bot.send_message(int(target), f"💬 <b>এডমিন থেকে অফিসিয়াল মেসেজ:</b>\n{DIVIDER_LINE}\n\n{text}", parse_mode="HTML")
-                bot.send_message(message.chat.id, f"✅ ইউজার <code>{target}</code> কে মেসেজটি সফলভাবে পাঠানো হয়েছে।", parse_mode="HTML")
-            except Exception as e:
-                bot.send_message(message.chat.id, f"❌ মেসেজ পাঠানো যায়নি! ভুল আইডি অথবা ইউজার বটটি ব্লক করেছে।\nError: {e}", parse_mode="HTML")
+                amt = float(text)
+                saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
+                method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
+                total_deduction = amt + get_cfg('WITHDRAW_FEE')
+                
+                if amt < get_cfg('MIN_WITHDRAW'):
+                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {get_cfg('MIN_WITHDRAW'):.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
+                else:
+                    user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
+                    if user_bal < total_deduction:
+                        bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>", parse_mode="HTML")
+                    else:
+                        BOT_DATA["balances"][str_user_id] -= total_deduction
+                        save_data(BOT_DATA)
+                        num = USER_DATA.get(user_id, {}).get('number', 'N/A')
+                        withdraw_group_msg = f"{EMOJI_CRYSTAL} <b>নতুন উইথড্র রিকোয়েস্ট</b>\n👤 নাম: {message.from_user.first_name}\n🆔 আইডি: <code>{user_id}</code>\n💳 মাধ্যম: <b>{method_name}</b>\n📱 নাম্বার: <code>{num}</code>\n💰 ইউজার পাবে: <b>{amt:.2f} BDT</b>"
+                        try: bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="HTML")
+                        except Exception: pass
+                        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!", parse_mode="HTML")
+            except ValueError: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল অ্যামাউন্ট!", parse_mode="HTML")
+            send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
             if user_id in USER_DATA: del USER_DATA[user_id]
-            bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
             return
 
-        # ২. লাইভ রেট কনফিগারেশন চেঞ্জ লজিক
-        elif current_state.startswith('SETTING_'):
-            cfg_key = current_state.replace('SETTING_', '')
-            try:
-                val = float(text.strip())
-                BOT_DATA["config"][cfg_key] = val
-                save_data(BOT_DATA)
-                bot.send_message(message.chat.id, f"✅ সফলভাবে আপডেট হয়েছে! <b>{cfg_key}</b> এখন সেট হয়েছে: <code>{val}</code>", parse_mode="HTML")
-            except ValueError:
-                bot.send_message(message.chat.id, "❌ ভুল ইনপুট! শুধুমাত্র সংখ্যা বা দশমিক ভ্যালু ইনপুট দিন।", parse_mode="HTML")
-            USER_STATES[user_id] = None
-            bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
-            return
+        # --- 👑 সুপার এডমিন প্যানেল লজিক পার্ট ---
+        if user_id == ADMIN_ID:
+            # ১. ইউজারকে সরাসরি মেসেজ পাঠানোর লজিক
+            if current_state == 'WAITING_FOR_MSG_USER_ID':
+                USER_DATA[user_id] = {'msg_target_id': text.strip()}
+                USER_STATES[user_id] = 'WAITING_FOR_MSG_TEXT'
+                bot.send_message(message.chat.id, f"📝 এবার ইউজারকে যে **মেসেজটি** পাঠাতে চান তা লিখে পাঠান:", parse_mode="HTML")
+                return
+                
+            elif current_state == 'WAITING_FOR_MSG_TEXT':
+                USER_STATES[user_id] = None
+                target = USER_DATA.get(user_id, {}).get('msg_target_id')
+                try:
+                    bot.send_message(int(target), f"💬 <b>এডমিন থেকে অফিসিয়াল মেসেজ:</b>\n{DIVIDER_LINE}\n\n{text}", parse_mode="HTML")
+                    bot.send_message(message.chat.id, f"✅ ইউজার <code>{target}</code> কে মেসেজটি সফলভাবে পাঠানো হয়েছে।", parse_mode="HTML")
+                except Exception as e:
+                    bot.send_message(message.chat.id, f"❌ মেসেজ পাঠানো যায়নি! ভুল আইডি অথবা ইউজার বটটি ব্লক করেছে।\nError: {e}", parse_mode="HTML")
+                if user_id in USER_DATA: del USER_DATA[user_id]
+                bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
+                return
 
-        # পুরনো টেক্সট কমান্ড মেথড সাপোর্ট
-        elif current_state == 'WAITING_FOR_CHECK_ID': USER_STATES[user_id] = None; message.text = f"/check {text}"; check_user_links_cmd(message); return
-        elif current_state == 'WAITING_FOR_APPROVE_DATA': USER_STATES[user_id] = None; message.text = f"/approve {text}"; approve_work(message)
-        elif current_state == 'WAITING_FOR_REJECT_DATA': USER_STATES[user_id] = None; message.text = f"/reject {text}"; reject_work(message)
-        elif current_state == 'WAITING_FOR_ADD_DATA': USER_STATES[user_id] = None; message.text = f"/add {text}"; add_balance(message)
-        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
-        return
+            # ২. লাইভ রেট কনফিগারেশন চেঞ্জ লজিক
+            elif current_state.startswith('SETTING_'):
+                cfg_key = current_state.replace('SETTING_', '')
+                try:
+                    val = float(text.strip())
+                    BOT_DATA["config"][cfg_key] = val
+                    save_data(BOT_DATA)
+                    bot.send_message(message.chat.id, f"✅ সফলভাবে আপডেট হয়েছে! <b>{cfg_key}</b> এখন সেট হয়েছে: <code>{val}</code>", parse_mode="HTML")
+                except ValueError:
+                    bot.send_message(message.chat.id, "❌ ভুল ইনপুট! শুধুমাত্র সংখ্যা বা দশমিক ভ্যালু ইনপুট দিন।", parse_mode="HTML")
+                USER_STATES[user_id] = None
+                bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
+                return
+
+            # পুরনো টেক্সট কমান্ড মেথড সাপোর্ট
+            elif current_state == 'WAITING_FOR_CHECK_ID': USER_STATES[user_id] = None; message.text = f"/check {text}"; check_user_links_cmd(message); return
+            elif current_state == 'WAITING_FOR_APPROVE_DATA': USER_STATES[user_id] = None; message.text = f"/approve {text}"; approve_work(message); return
+            elif current_state == 'WAITING_FOR_REJECT_DATA': USER_STATES[user_id] = None; message.text = f"/reject {text}"; reject_work(message); return
+            elif current_state == 'WAITING_FOR_ADD_DATA': USER_STATES[user_id] = None; message.text = f"/add {text}"; add_balance(message); return
 
     if text == '🚀 অ্যাকাউন্ট জমা দিন':
         send_account_submit_panel(chat_id=message.chat.id)
@@ -465,101 +560,6 @@ def handle_message(message):
         bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
         return
 
-    # 👤 ফেসবুক কাজের জন্য UID ভ্যালিডেশন স্টেট
-    if USER_STATES.get(user_id) == 'WAITING_FOR_FB_UID':
-        uid_input = text.strip()
-        if not uid_input.isdigit() or not (14 <= len(uid_input) <= 16):
-            bot.send_message(message.chat.id, "❌ <b>ভুল UID!</b> আপনার ফেসবুক অ্যাকাউন্টের সঠিক ১৪ থেকে ১৬ সংখ্যার UID-টি দিন।", parse_mode="HTML")
-            return
-        if user_id not in USER_DATA: USER_DATA[user_id] = {}
-        USER_DATA[user_id]['fb_uid'] = uid_input
-        USER_STATES[user_id] = 'WAITING_FOR_FB_2FA'
-        m_2fa = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>আপনার ফেসবুক অ্যাকাউন্টের 2FA Secret Key-টি এখানে পাঠান:</b> ⤵️", parse_mode="HTML")
-        track_msg(user_id, m_2fa)
-        return
-
-    # 🔑 ফেসবুক ২এফএ কী সাবমিট প্রসেস
-    if USER_STATES.get(user_id) == 'WAITING_FOR_FB_2FA':
-        user_input = text.strip().replace(" ", "").upper()
-        try:
-            missing_padding = len(user_input) % 8
-            if missing_padding: user_input += '=' * (8 - missing_padding)
-            totp = pyotp.TOTP(user_input)
-            code = totp.now()
-            USER_DATA[user_id]['2fa_key'] = user_input
-            m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} ফেসবুক অ্যাকাউন্ট সম্পূর্ণ ভেরিফাই হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
-            m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
-            finish_markup = types.InlineKeyboardMarkup()
-            finish_markup.add(types.InlineKeyboardButton('✅ ফেসবুক অ্যাকাউন্ট তৈরি শেষ', callback_data='work_fb_finish_done'))
-            finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
-            m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
-            track_msg(user_id, message); track_msg(user_id, m1); track_msg(user_id, m2); track_msg(user_id, m3)
-            USER_STATES[user_id] = 'WAITING_FOR_FINISH'
-        except Exception:
-            bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
-            send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
-        return
-
-    # 📋 ইনস্টাগ্রাম ২এফএ কি সাবমিট করার প্রসেস
-    if USER_STATES.get(user_id) == 'WAITING_FOR_2FA_KEY':
-        user_input = text.strip().replace(" ", "").upper()
-        try:
-            missing_padding = len(user_input) % 8
-            if missing_padding: user_input += '=' * (8 - missing_padding)
-            totp = pyotp.TOTP(user_input)
-            code = totp.now()
-            if user_id not in USER_DATA: USER_DATA[user_id] = {}
-            USER_DATA[user_id]['2fa_key'] = user_input
-            m1 = bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} অ্যাকাউন্ট সম্পূর্ণ রেডি হলে নিচের বাটনে প্রেস করবেন।", parse_mode="HTML")
-            m2 = bot.send_message(message.chat.id, f"{EMOJI_FIRE} <b>নিচের ওটিপি কোডটি টাচ করে কপি করুন:</b>\n\n<code>{code}</code>", parse_mode="HTML")
-            finish_markup = types.InlineKeyboardMarkup()
-            finish_markup.add(types.InlineKeyboardButton('✅ অ্যাকাউন্ট তৈরি শেষ', callback_data='work_finish_done'))
-            finish_markup.add(types.InlineKeyboardButton('❌ বাতিল', callback_data='go_to_main_menu'))
-            m3 = bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ফাইনাল সাবমিট করার বাটন:</b>", reply_markup=finish_markup, parse_mode="HTML")
-            track_msg(user_id, message); track_msg(user_id, m1); track_msg(user_id, m2); track_msg(user_id, m3)
-            USER_STATES[user_id] = 'WAITING_FOR_FINISH'
-        except Exception:
-            bot.send_message(message.chat.id, f"{EMOJI_LOCK} <b>ভুল 2FA Key!</b> সঠিক সিক্রেট কী আবার দিন।", parse_mode="HTML")
-            send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
-        return
-        
-    if USER_STATES.get(user_id) in ['WAITING_FOR_BKASH_NUMBER', 'WAITING_FOR_NAGAD_NUMBER']:
-        if user_id not in USER_DATA: USER_DATA[user_id] = {}
-        USER_DATA[user_id]['number'] = text
-        USER_DATA[user_id]['method'] = "BKASH" if USER_STATES[user_id] == 'WAITING_FOR_BKASH_NUMBER' else "NAGAD"
-        USER_STATES[user_id] = 'WAITING_FOR_AMOUNT'
-        cancel_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        cancel_markup.add(types.KeyboardButton('❌ বাতিল করুন'))
-        bot.send_message(message.chat.id, f"{EMOJI_CALENDAR} কত টাকা উত্তোলন করতে চান? (সর্বনিম্ন {get_cfg('MIN_WITHDRAW'):.0f}৳ এবং উইথড্র ফি {get_cfg('WITHDRAW_FEE'):.0f}৳):", reply_markup=cancel_markup, parse_mode="HTML")
-        return
-
-    # 💳 উইথড্রাল অ্যামাউন্ট ভ্যালিডেশন
-    if USER_STATES.get(user_id) == 'WAITING_FOR_AMOUNT':
-        try:
-            amt = float(text)
-            saved_method = USER_DATA.get(user_id, {}).get('method', 'BKASH')
-            method_name = "বিকাশ" if saved_method == "BKASH" else "নগদ"
-            total_deduction = amt + get_cfg('WITHDRAW_FEE')
-            
-            if amt < get_cfg('MIN_WITHDRAW'):
-                bot.send_message(message.chat.id, f"{EMOJI_LOCK} রিকোয়েস্ট ক্যানসেল! সর্বনিম্ন {get_cfg('MIN_WITHDRAW'):.0f}৳ উত্তোলন করতে হবে।", parse_mode="HTML")
-            else:
-                user_bal = BOT_DATA["balances"].get(str_user_id, 0.0)
-                if user_bal < total_deduction:
-                    bot.send_message(message.chat.id, f"{EMOJI_LOCK} পর্যাপ্ত ব্যালেন্স নেই!\n🔥 উইথড্র ফি সহ আপনার মোট প্রয়োজন: <b>{total_deduction:.2f} BDT</b>", parse_mode="HTML")
-                else:
-                    BOT_DATA["balances"][str_user_id] -= total_deduction
-                    save_data(BOT_DATA)
-                    num = USER_DATA.get(user_id, {}).get('number', 'N/A')
-                    withdraw_group_msg = f"{EMOJI_CRYSTAL} <b>নতুন উইথড্র রিকোয়েস্ট</b>\n👤 নাম: {message.from_user.first_name}\n🆔 আইডি: <code>{user_id}</code>\n💳 মাধ্যম: <b>{method_name}</b>\n📱 নাম্বার: <code>{num}</code>\n💰 ইউজার পাবে: <b>{amt:.2f} BDT</b>"
-                    try: bot.send_message(WITHDRAW_GROUP_ID, withdraw_group_msg, parse_mode="HTML")
-                    except Exception: pass
-                    bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে!", parse_mode="HTML")
-        except ValueError: bot.send_message(message.chat.id, f"{EMOJI_LOCK} ভুল অ্যামাউন্ট!", parse_mode="HTML")
-        send_user_main_menu(message.chat.id); USER_STATES[user_id] = None
-        if user_id in USER_DATA: del USER_DATA[user_id]
-        return
-
 # 🎛️ ইনলাইন বাটন ক্লিক হ্যান্ডেলার
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -593,12 +593,12 @@ def callback_inline(call):
         m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
         track_msg(user_id, m_gen); bot.answer_callback_query(call.id)
 
-    # 🔵 ফেসবুক টাস্ক স্টার্ট জেনারেটর
+    # 🔵 [ফিক্সড]: ফেসবুক টাস্ক স্টার্ট জেনারেটর (upass ভ্যারিয়েবল ডাইনামিক করা হয়েছে)
     elif call.data == 'work_fb_start_generate':
         fullname, upass = generate_credentials(is_fb=True)
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
         USER_DATA[user_id].update({'fb_name': fullname, 'generated_password': upass, 'task_type': 'FACEBOOK'})
-        msg = f"First name: <code>{fullname.split(' ')[0]}</code>\nLast name: <code>{fullname.split(' ')[1]}</code>\nPassword: <code>upass</code>\n\nSend UID বাটনে চাপ দিন।"
+        msg = f"First name: <code>{fullname.split(' ')[0]}</code>\nLast name: <code>{fullname.split(' ')[1]}</code>\nPassword: <code>{upass}</code>\n\nSend UID বাটন এ চাপ দিন।"
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton("Send UID", callback_data="open_fb_uid_input"), types.InlineKeyboardButton("❌ বাতিল", callback_data="go_to_main_menu"))
         m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
