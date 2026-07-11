@@ -20,8 +20,10 @@ WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্
 BALANCE_FILE = "balances.json"
 
 # 📊 গুগল শিট আইডি
-INSTA_SPREADSHEET_ID = "1LFnQKiDdoiE0GUtApWbSAsbDUELo1LszhLX64CtpRBM"
-FB_SPREADSHEET_ID = "1Bl6y5eHkFVjpqy6NIPCGdZBo0u6Ekod51B6gXJ0sAZk"
+INSTA_SPREADSHEET_ID = "1kcQNx7bSfesKzL_zzS0u2pmU1bxoZzhV0rvB0Nq5ODU
+"
+FB_SPREADSHEET_ID = "1FNpws7CqVDdhN00c-fksi_r517B7rtmnixze1ibNlbE
+"
 
 # 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
