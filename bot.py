@@ -13,7 +13,8 @@ from google.oauth2.service_account import Credentials
 TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
-CHANNEL_USERNAME = "@OfficialInstagramSellBD"
+# 🔄 নতুন চ্যানেল/গ্রুপ ইউজারনেম আপডেট করা হয়েছে
+CHANNEL_USERNAME = "@facebook_account_sell_bot_group"
 ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
 BALANCE_FILE = "balances.json"
@@ -86,7 +87,7 @@ def clear_user_session_messages(chat_id, user_id):
             except Exception: pass
         USER_DATA[user_id]['msg_ids'] = []
 
-# 📆 সন্ধ্যা ৬টার লজিক অনুযায়ী ডাইনামিক পাসওয়ার্ড জেনারেটর
+# 📆 Passwords Generation Logic
 def get_dynamic_password():
     now = datetime.datetime.now()
     if now.hour >= 18: target_date = now + datetime.timedelta(days=1)
@@ -236,7 +237,8 @@ def start_cmd(message):
             bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>এডমিন কন্ট্রোল প্যানেল:</b>", reply_markup=get_admin_inline_keyboard(), parse_mode="HTML")
     else:
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton('🔗 জয়েন চ্যানেল', url=f"https://t.me/{CHANNEL_USERNAME[1:]}"))
+        # 🔗 নতুন জয়েন চ্যানেল লিংক আপডেট করা হয়েছে
+        markup.add(types.InlineKeyboardButton('🔗 জয়েন চ্যানেল', url="https://t.me/facebook_account_sell_bot_group"))
         markup.add(types.InlineKeyboardButton('✅ জয়েন কমপ্লিট ✅', callback_data='check_joined_btn'))
         
         join_msg = (
@@ -380,7 +382,7 @@ def handle_message(message):
         send_user_main_menu(message.chat.id)
         return
 
-    # 👤 [ফিক্সড লজিক]: এডমিন প্যানেলের আগেই ইউজারের অ্যাকাউন্ট সাবমিশন স্টেটগুলো আগে চেক করা হচ্ছে
+    # ইউজারের অ্যাকাউন্ট সাবমিশন স্টেটগুলো আগে চেক করা হচ্ছে
     if USER_STATES.get(user_id):
         current_state = USER_STATES[user_id]
         
@@ -549,11 +551,13 @@ def handle_message(message):
         return
 
     elif text == '📊 কাজের গাইডলাইন':
-        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>আমাদের অফিশিয়াল চ্যানেলে কাজের ভিডিও গাইডলাইন দেওয়া আছে।</b>\n\n📢 লিংক: {CHANNEL_USERNAME}", parse_mode="HTML")
+        # 🔗 নতুন কাজের গাইডলাইন লিংক আপডেট করা হয়েছে
+        bot.send_message(message.chat.id, f"{EMOJI_CRYSTAL} <b>আমাদের অফিশিয়াল চ্যানেলে কাজের ভিডিও গাইডলাইন দেওয়া আছে।</b>\n\n📢 লিংক: https://t.me/facebook_account_sell_bot_group", parse_mode="HTML")
         return
 
     elif text == '🎧 হেল্প ও সাপোর্ট':
-        bot.send_message(message.chat.id, f"{EMOJI_USERS} <b>যেকোনো সমস্যায় সরাসরি আমাদের কাস্টমার সাপোর্ট আইডিতে মেসেজ দিন:</b>\n\n👉 @nafin_4x_team", parse_mode="HTML")
+        # 🎧 নতুন সাপোর্ট আইডি আপডেট করা হয়েছে
+        bot.send_message(message.chat.id, f"{EMOJI_USERS} <b>যেকোনো সমস্যায় সরাসরি আমাদের কাস্টমার সাপোর্ট আইডিতে মেসেজ দিন:</b>\n\n👉 @Rds_Robiul_Jahid_official", parse_mode="HTML")
         return
 
     elif text == '👑 এডমিন কন্ট্রোল' and user_id == ADMIN_ID:
@@ -593,7 +597,7 @@ def callback_inline(call):
         m_gen = bot.send_message(call.message.chat.id, msg, parse_mode="HTML", reply_markup=markup)
         track_msg(user_id, m_gen); bot.answer_callback_query(call.id)
 
-    # 🔵 [ফিক্সড]: ফেসবুক টাস্ক স্টার্ট জেনারেটর (upass ভ্যারিয়েবল ডাইনামিক করা হয়েছে)
+    # 🔵 ফেসবুক টাস্ক স্টার্ট জেনারেটর
     elif call.data == 'work_fb_start_generate':
         fullname, upass = generate_credentials(is_fb=True)
         if user_id not in USER_DATA: USER_DATA[user_id] = {}
