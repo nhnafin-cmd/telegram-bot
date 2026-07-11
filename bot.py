@@ -19,11 +19,9 @@ ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইড�
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
 BALANCE_FILE = "balances.json"
 
-# 📊 গুগল শিট আইডি
-INSTA_SPREADSHEET_ID = "1kcQNx7bSfesKzL_zzS0u2pmU1bxoZzhV0rvB0Nq5ODU
-"
-FB_SPREADSHEET_ID = "1FNpws7CqVDdhN00c-fksi_r517B7rtmnixze1ibNlbE
-"
+# 📊 গুগল শিট আইডি (ঠিক করা হয়েছে)
+INSTA_SPREADSHEET_ID = "1kcQNx7bSfesKzL_zzS0u2pmU1bxoZzhV0rvB0Nq5ODU"
+FB_SPREADSHEET_ID = "1FNpws7CqVDdhN00c-fksi_r517B7rtmnixze1ibNlbE"
 
 # 💎 কাস্টম অ্যানিমেটেড ইমোজি ও ডিভাইডার আইডি সেটআপ
 DIVIDER = "<tg-emoji emoji-id='5870818207383686839'>━</tg-emoji>"
@@ -37,6 +35,7 @@ EMOJI_LOCK    = "<tg-emoji emoji-id='5337255927735163754'>🔒</tg-emoji>"
 
 USER_STATES = {}
 USER_DATA = {}
+
 
 # ডাটা লোড এবং সেভ করার সিস্টেম (নিশ্চিত করে ডাটা লস হবে না)
 def load_data():
