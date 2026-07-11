@@ -15,7 +15,7 @@ bot = telebot.TeleBot(TOKEN)
 
 # 🔄 নতুন চ্যানেল/গ্রুপ ইউজারনেম আপডেট করা হয়েছে
 CHANNEL_USERNAME = "@facebook_account_sell_bot_group"
-ADMIN_ID = 7831606559  # আপনার টেলিগ্রাম আইডি
+ADMIN_ID = 6345226762  # আপনার টেলিগ্রাম আইডি
 WITHDRAW_GROUP_ID = "@igsellonly"  # উইথড্র রিকোয়েস্ট গ্রুপ ইউজারনেম
 BALANCE_FILE = "balances.json"
 
