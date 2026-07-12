@@ -188,7 +188,7 @@ def send_account_submit_panel(chat_id):
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton(f'🟣 ইনস্টাগ্রাম টাস্ক ({get_cfg("INSTA_RATE"):.2f} BDT)', callback_data='work_insta_start_generate'),
-        types.InlineKeyboardButton(f'🔵 ফেসবুক ২এফএ টাস্ক ({get_cfg("FB_RATE"):.2f} BDT)', callback_data='work_fb_start_generate'),
+        types.InlineKeyboardButton(f'🔵 ফেসবুক ২ কুকিজ টাস্ক ({get_cfg("FB_RATE"):.2f} BDT)', callback_data='work_fb_start_generate'),
         types.InlineKeyboardButton('🔙 মেইন মেনু', callback_data='go_to_main_menu')
     )
     bot.send_message(chat_id, submit_msg, reply_markup=markup, parse_mode="HTML")
