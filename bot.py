@@ -117,9 +117,48 @@ def append_to_google_sheet(sheet_id, row_data):
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(sheet_id).sheet1
-        sheet.append_row(row_data)
-    except Exception as e: print(f"Error updating Google Sheet: {e}")
+        
+        # 🛠️ অটোমেটিক কলাম সিরিয়াল ঠিক করার ট্রিক:
+        # row_data এর ভেতর থেকে টেলিগ্রাম আইডি (যা শুধু সংখ্যা) খুঁজে বের করা
+        telegram_id = None
+        username_val = "Unknown"
+        
+        for item in row_data:
+            cleaned = str(item).strip()
+            if cleaned.isdigit() and len(cleaned) >= 8:  # সাধারণত টেলিগ্রাম আইডি ৮-১০ ডিজিটের সংখ্যা হয়
+                telegram_id = cleaned
+                break
+                
+        # যদি আইডি পাওয়া যায়, তবে সেটিকে ঠিক ৬ নম্বর (F) কলামে এবং নামটিকে ৭ নম্বর (G) কলামে সেট করা
+        if telegram_id:
+            # প্রথমে row_data থেকে আইডি এবং নাম (যদি থাকে) সাময়িকভাবে রিমুভ করে ক্লিন করা
+            clean_row = [x for x in row_data if str(x).strip() != telegram_id]
+            
+            # যদি সিস্টেমে কোনো ইউজারনেম/লিংক থাকে, সেটাকে আলাদা করা
+            if len(clean_row) > 0:
+                username_val = clean_row[-1] # শেষের ডাটাটিই সাধারণত ইউজারনেম বা লিংক হয়
+                clean_row = clean_row[:-1]
+            
+            # এখন নতুনভাবে কলাম সাজানো: A, B, C, D, E কলামে আগের তথ্য থাকবে
+            final_row = clean_row[:5]
+            
+            # যদি আগের তথ্য ৫টির কম হয়, তবে খালি ঘর দিয়ে ৫টি কলাম পূরণ করা
+            while len(final_row) < 5:
+                final_row.append("")
+                
+            final_row.append(str(telegram_id)) # কলাম ৬ (F) -> এখানে বসবে শুধু সংখ্যা আইডি
+            final_row.append(str(username_val)) # কলাম ৭ (G) -> এখানে বসবে ইউজারনেম বা লিংক
+            
+            # যদি আরও অতিরিক্ত কোনো ডাটা থাকে (যেমন পাসওয়ার্ড), তা এরপরে বসবে
+            if len(clean_row) > 5:
+                final_row.extend(clean_row[5:])
+                
+            row_data = final_row
 
+        sheet.append_row(row_data)
+    except Exception as e: 
+        print(f"Error updating Google Sheet: {e}")
+        
 # 📱 প্রধান মেনু কিবোর্ড ডিজাইন
 def send_user_main_menu(chat_id, text_msg=None):
     if text_msg is None:
