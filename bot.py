@@ -9,7 +9,6 @@ from telebot import types
 import gspread
 from google.oauth2.service_account import Credentials
 
-‎
 ‎# ⚙️ BOT TOKEN & CONFIG
 ‎TOKEN = os.getenv("BOT_TOKEN")
 ‎bot = telebot.TeleBot(TOKEN)
