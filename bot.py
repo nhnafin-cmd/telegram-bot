@@ -728,5 +728,96 @@ def callback_inline(call):
     elif call.data == 'admin_reject' and user_id == ADMIN_ID: USER_STATES[user_id] = 'WAITING_FOR_REJECT_DATA'; bot.send_message(call.message.chat.id, "格式: <code>আইডি কয়টি কারণ</code>", parse_mode="HTML"); bot.answer_callback_query(call.id)
     elif call.data == 'admin_add_bal' and user_id == ADMIN_ID: USER_STATES[user_id] = 'WAITING_FOR_ADD_DATA'; bot.send_message(call.message.chat.id, "格式: <code>আইডি টাকা</code>", parse_mode="HTML"); bot.answer_callback_query(call.id)
 
+
+# ==========================================
+# 🌐 গুগল শিট অটো-অ্যাপ্রুভ ব্যাকএন্ড সার্ভার (FLASK WEBHOOK)
+# ==========================================
+from flask import Flask, request, jsonify
+import threading
+
+app = Flask('')
+
+@app.route('/sheet-update', methods=['POST'])
+def sheet_update():
+    data = request.json
+    user_id = data.get('user_id')
+    status = data.get('status')
+    sheet_name = data.get('sheet_name', '')
+    
+    str_user_id = str(user_id)
+    
+    # বৈশ্বিক BOT_DATA লোড ও সিঙ্ক করা
+    global BOT_DATA
+    try:
+        BOT_DATA = load_data()
+    except:
+        pass
+    
+    # শিটের নাম অনুযায়ী লাইভ রেট সেটআপ
+    if "ig" in sheet_name.lower() or "insta" in sheet_name.lower():
+        amount = get_cfg('INSTA_RATE')
+        platform = "Instagram"
+    else:
+        amount = get_cfg('FB_RATE')
+        platform = "Facebook"
+        
+    try:
+        if status == "✅":
+            # পেন্ডিং ডেটা কমানো
+            if BOT_DATA.get("pending_counts", {}).get(str_user_id, 0) > 0:
+                BOT_DATA["pending_counts"][str_user_id] -= 1
+                
+            if str_user_id in BOT_DATA.get("pending_links", {}) and len(BOT_DATA["pending_links"][str_user_id]) > 0:
+                BOT_DATA["pending_links"][str_user_id].pop(0)
+                
+            # মেইন ব্যালেন্সে টাকা ও এপ্রুভ সংখ্যা যোগ
+            if "balances" not in BOT_DATA: BOT_DATA["balances"] = {}
+            if "approved_counts" not in BOT_DATA: BOT_DATA["approved_counts"] = {}
+            
+            BOT_DATA["balances"][str_user_id] = BOT_DATA["balances"].get(str_user_id, 0.0) + amount
+            BOT_DATA["approved_counts"][str_user_id] = BOT_DATA["approved_counts"].get(str_user_id, 0) + 1
+            
+            # রেফারেল কমিশন লজিক
+            referrer_id = BOT_DATA.get("referred_by", {}).get(str_user_id)
+            if referrer_id and str(referrer_id) in BOT_DATA.get("balances", {}):
+                commission = amount * get_cfg('REFER_COMMISSION_PERCENT')
+                BOT_DATA["balances"][str(referrer_id)] += commission
+                try:
+                    bot.send_message(int(referrer_id), f"{EMOJI_CRYSTAL} <b>রেফারেল কমিশন আপডেট!</b>\n\n💰 আপনার রেফারকৃত ইউজারের কাজের জন্য <b>{commission:.2f} BDT</b> কমিশন যোগ হয়েছে।", parse_mode="HTML")
+                except: pass
+                
+            save_data(BOT_DATA)
+            
+            # ইউজারকে টেলিগ্রামে ইনস্ট্যান্ট সাকসেস মেসেজ পাঠানো
+            bot.send_message(int(user_id), f"{EMOJI_CRYSTAL} <b>কাজ এপ্রুভড নোটিফিকেশন!</b>\n\n🎉 আপনার জমা দেওয়া <b>{platform}</b> অ্যাকাউন্টটি সফলভাবে এপ্রুভ করা হয়েছে।\n💰 আপনার মেইন ব্যালেন্সে <b>{amount:.2f} BDT</b> যোগ হয়েছে!", parse_mode="HTML")
+            
+        elif status == "❌":
+            # পেন্ডিং কাউন্ট কমানো
+            if BOT_DATA.get("pending_counts", {}).get(str_user_id, 0) > 0:
+                BOT_DATA["pending_counts"][str_user_id] -= 1
+                
+            if str_user_id in BOT_DATA.get("pending_links", {}) and len(BOT_DATA["pending_links"][str_user_id]) > 0:
+                BOT_DATA["pending_links"][str_user_id].pop(0)
+                
+            if "rejected_counts" not in BOT_DATA: BOT_DATA["rejected_counts"] = {}
+            BOT_DATA["rejected_counts"][str_user_id] = BOT_DATA["rejected_counts"].get(str_user_id, 0) + 1
+            save_data(BOT_DATA)
+            
+            # ইউজারকে টেলিগ্রামে রিজেক্টেড মেসেজ পাঠানো
+            bot.send_message(int(user_id), f"{EMOJI_LOCK} <b>কাজ রিজেক্টেড নোটিফিকেশন!</b>\n\n❌ দুঃখিত! আপনার সাবমিট করা <b>{platform}</b> অ্যাকাউন্টটি নিয়ম না মানার কারণে রিজেক্ট করা হয়েছে।", parse_mode="HTML")
+            
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        print(f"Webhook Error: {e}")
+        return jsonify({"status": "error"}), 500
+
+def run_flask():
+    bot_port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=bot_port)
+
+# 🔄 মেইন এক্সিকিউশন রানার
 if __name__ == '__main__':
+    # Flask ওয়েব সার্ভারকে ব্যাকগ্রাউন্ড আলাদা থ্রেডে চালানো হলো
+    threading.Thread(target=run_flask, daemon=True).start()
+    # টেলিগ্রাম বটকে মেইন থ্রেডে চালানো হলো
     bot.infinity_polling(skip_pending=True)
