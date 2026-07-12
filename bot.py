@@ -1,4 +1,4 @@
-`import os`
+iport os
 ‎import json
 ‎import pyotp
 ‎import random
