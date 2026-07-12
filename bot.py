@@ -1,4 +1,4 @@
-‎import os
+‎import OS
 ‎import json
 ‎import pyotp
 ‎import random
