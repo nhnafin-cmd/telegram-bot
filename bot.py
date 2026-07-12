@@ -779,7 +779,7 @@ app = Flask('')
 @app.route('/sheet-update', methods=['POST'])
 def sheet_update():
     data = request.json
-    user_id = data.get('user_id')
+    username = data.get('username')
     status = data.get('status')
     sheet_name = data.get('sheet_name', '')
     
