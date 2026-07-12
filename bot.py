@@ -756,14 +756,17 @@ def sheet_update():
     # শিটের নাম অনুযায়ী লাইভ রেট সেটআপ
     if "ig" in sheet_name.lower() or "insta" in sheet_name.lower():
         amount = get_cfg('INSTA_RATE')
-        platform = "Instagram"
     else:
         amount = get_cfg('FB_RATE')
-        platform = "Facebook"
         
     try:
+        # ইউজারের জমা দেওয়া লিংক বা ইউজারনেমটি ডাটাবেজ থেকে খুঁজে বের করা
+        submitted_item = "Account"
+        if str_user_id in BOT_DATA.get("pending_links", {}) and len(BOT_DATA["pending_links"][str_user_id]) > 0:
+            submitted_item = BOT_DATA["pending_links"][str_user_id][0]
+            
         if status == "✅":
-            # পেন্ডিং ডেটা কমানো
+            # পেন্ডিং ডাটা ১টি মাইনাস করা/মুছে ফেলা
             if BOT_DATA.get("pending_counts", {}).get(str_user_id, 0) > 0:
                 BOT_DATA["pending_counts"][str_user_id] -= 1
                 
@@ -783,16 +786,17 @@ def sheet_update():
                 commission = amount * get_cfg('REFER_COMMISSION_PERCENT')
                 BOT_DATA["balances"][str(referrer_id)] += commission
                 try:
-                    bot.send_message(int(referrer_id), f"{EMOJI_CRYSTAL} <b>রেফারেল কমিশন আপডেট!</b>\n\n💰 আপনার রেফারকৃত ইউজারের কাজের জন্য <b>{commission:.2f} BDT</b> কমিশন যোগ হয়েছে।", parse_mode="HTML")
+                    bot.send_message(int(referrer_id), f"🔮 <b>রেফারেল কমিশন আপডেট!</b>\n\n💰 আপনার রেফারকৃত ইউজারের কাজের জন্য <b>{commission:.2f} BDT</b> কমিশন যোগ হয়েছে।", parse_mode="HTML")
                 except: pass
                 
             save_data(BOT_DATA)
             
-            # ইউজারকে টেলিগ্রামে ইনস্ট্যান্ট সাকসেস মেসেজ পাঠানো
-            bot.send_message(int(user_id), f"{EMOJI_CRYSTAL} <b>কাজ এপ্রুভড নোটিফিকেশন!</b>\n\n🎉 আপনার জমা দেওয়া <b>{platform}</b> অ্যাকাউন্টটি সফলভাবে এপ্রুভ করা হয়েছে।\n💰 আপনার মেইন ব্যালেন্সে <b>{amount:.2f} BDT</b> যোগ হয়েছে!", parse_mode="HTML")
+            # কাস্টম সাকসেস মেসেজ ফরম্যাট
+            success_msg = f"✅ <code>{submitted_item}</code> ei 🆔 ti approved hoiye SE ar <b>{amount:.2f} BDT</b> অটো অ্যাড হয়েছে।"
+            bot.send_message(int(user_id), success_msg, parse_mode="HTML")
             
         elif status == "❌":
-            # পেন্ডিং কাউন্ট কমানো
+            # পেন্ডিং ডাটা ১টি কেটে ফেলা/মুছে ফেলা
             if BOT_DATA.get("pending_counts", {}).get(str_user_id, 0) > 0:
                 BOT_DATA["pending_counts"][str_user_id] -= 1
                 
@@ -803,8 +807,9 @@ def sheet_update():
             BOT_DATA["rejected_counts"][str_user_id] = BOT_DATA["rejected_counts"].get(str_user_id, 0) + 1
             save_data(BOT_DATA)
             
-            # ইউজারকে টেলিগ্রামে রিজেক্টেড মেসেজ পাঠানো
-            bot.send_message(int(user_id), f"{EMOJI_LOCK} <b>কাজ রিজেক্টেড নোটিফিকেশন!</b>\n\n❌ দুঃখিত! আপনার সাবমিট করা <b>{platform}</b> অ্যাকাউন্টটি নিয়ম না মানার কারণে রিজেক্ট করা হয়েছে।", parse_mode="HTML")
+            # কাস্টম রিজেক্ট মেসেজ ফরম্যাট
+            reject_msg = f"❌ <code>{submitted_item}</code> ei 🆔 ti reject hoiye SE"
+            bot.send_message(int(user_id), reject_msg, parse_mode="HTML")
             
         return jsonify({"status": "success"}), 200
     except Exception as e:
@@ -817,7 +822,8 @@ def run_flask():
 
 # 🔄 মেইন এক্সিকিউশন রানার
 if __name__ == '__main__':
-    # Flask ওয়েব সার্ভারকে ব্যাকগ্রাউন্ড আলাদা থ্রেডে চালানো হলো
+    # Flask ওয়েব সার্ভার ব্যাকগ্রাউন্ড থ্রেডে রান করা হলো
     threading.Thread(target=run_flask, daemon=True).start()
-    # টেলিগ্রাম বটকে মেইন থ্রেডে চালানো হলো
+    # টেলিগ্রাম বট মেইন থ্রেডে রান করা হলো
     bot.infinity_polling(skip_pending=True)
+        
