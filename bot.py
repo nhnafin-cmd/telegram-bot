@@ -767,6 +767,52 @@ def callback_inline(call):
     elif call.data == 'admin_reject' and user_id == ADMIN_ID: USER_STATES[user_id] = 'WAITING_FOR_REJECT_DATA'; bot.send_message(call.message.chat.id, "格式: <code>আইডি কয়টি কারণ</code>", parse_mode="HTML"); bot.answer_callback_query(call.id)
     elif call.data == 'admin_add_bal' and user_id == ADMIN_ID: USER_STATES[user_id] = 'WAITING_FOR_ADD_DATA'; bot.send_message(call.message.chat.id, "格式: <code>আইডি টাকা</code>", parse_mode="HTML"); bot.answer_callback_query(call.id)
 
+// ডাটা শিটে জমা হওয়ার জন্য
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+  var data = JSON.parse(e.postData.contents);
+  
+  // A: Type, B: User ID, C: Username, D: Password, E: 2FA Key, F: Status (Checkbox)
+  sheet.appendRow([
+    data.type,       // A
+    data.user_id,    // B
+    data.username,   // C
+    data.password,   // D
+    data.fa_key,     // E
+    false            // F (ফাঁকা চেকবাক্স)
+  ]);
+  
+  return ContentService.createTextOutput("Success");
+}
+
+// টিক দিলে ব্যালেন্স যোগ এবং ক্রস করলে রিজেক্ট হওয়ার জন্য
+function onEdit(e) {
+  var sheet = e.source.getActiveSheet();
+  var range = e.range;
+  
+  if (sheet.getName() == "Sheet1" && range.getColumn() == 6 && range.getRow() > 1) {
+    var row = range.getRow();
+    var userId = sheet.getRange(row, 2).getValue(); 
+    var status = range.getValue();
+    var amount = 3.00; // কাজের টাকা
+    
+    var userSheet = e.source.getSheetByName("Users");
+    var data = userSheet.getDataRange().getValues();
+    
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] == userId) {
+        var currentBalance = data[i][1] || 0;
+        if (status === true) {
+          userSheet.getRange(i + 1, 2).setValue(currentBalance + amount);
+        } else {
+          userSheet.getRange(i + 1, 2).setValue(currentBalance - amount);
+        }
+        break;
+      }
+    }
+  }
+}
+
 
 # ==========================================
 # 🌐 গুগল শিট অটো-অ্যাপ্রুভ ব্যাকএন্ড সার্ভার (FLASK WEBHOOK)
