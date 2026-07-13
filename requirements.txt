@@ -1,4 +1,4 @@
-pyTelegramBotAPI
+pyTelegramBotAPI==4.24.0
 pyotp==2.9.0
 gspread==6.2.1
 google-auth==2.37.0
